@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}إدارة المستخدمين{% endblock %}
+{% block search_action %}{% url 'users' %}{% endblock %}
+{% block search_placeholder %}بحث برقم المستخدم أو الاسم...{% endblock %}
+
+{% block content %}
+<nav class="crumbs">لوحة المعلومات <span>›</span> إدارة المستخدمين</nav>
+<div class="page-head">
+    <div>
+        <h1>إدارة المستخدمين والصلاحيات</h1>
+        <p class="muted">حسابات الدخول وأدوار الصلاحيات في المنصة</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'export_users' %}{% if export_query %}?{{ export_query }}{% endif %}">
+            {% include "partials/icon.html" with name="excel" %}
+            تصدير Excel
+        </a>
+        <button class="btn btn-navy" type="button" data-open="create-modal">
+            {% include "partials/icon.html" with name="plus" %}
+            إضافة مستخدم
+        </button>
+    </div>
+</div>
+
+<section class="card excel-card">
+    <div class="table-wrap excel-wrap">
+        <table class="data-table excel-table">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>رقم المستخدم</th>
+                    <th>الاسم</th>
+                    <th>الدور</th>
+                    <th>البريد</th>
+                    <th>الهاتف</th>
+                    <th>الفرع</th>
+                    <th>الإجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in users %}
+                <tr>
+                    <td class="row-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                    <td class="mono">{{ row.username }}</td>
+                    <td>{{ row.get_full_name|default:row.username }}</td>
+                    <td>{{ row.profile.role_label_display|default:"—" }}</td>
+                    <td>{{ row.email|default:"—" }}</td>
+                    <td>{{ row.profile.phone|default:"—" }}</td>
+                    <td>{{ row.profile.branch|default:"—" }}</td>
+                    <td class="row-actions">
+                        {% action "edit" "user_edit" row.pk %}
+                        {% if row.pk != user.pk %}
+                        {% action "delete" "user_delete" row.pk row.username %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="muted">لا يوجد مستخدمون</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-foot">
+        <span>عرض {{ page_obj.start_index }} إلى {{ page_obj.end_index }} من {{ page_obj.paginator.count }} مستخدم</span>
+        <a class="text-link" href="{% url 'export_users' %}{% if export_query %}?{{ export_query }}{% endif %}">تحميل ملف Excel</a>
+    </footer>
+    {% include "partials/pagination.html" %}
+</section>
+
+<div class="modal {% if form.errors %}is-open{% endif %}" id="create-modal" {% if not form.errors %}hidden{% endif %}>
+    <div class="modal-card">
+        <header>
+            <h2>إضافة مستخدم</h2>
+            <button type="button" class="icon-btn" data-close>×</button>
+        </header>
+        <form method="post">
+            {% csrf_token %}
+            <label class="field">
+                <span>رقم المستخدم</span>
+                {{ form.username }}
+                {% if form.username.errors %}<small class="danger-text">{{ form.username.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>الاسم</span>
+                {{ form.full_name }}
+                {% if form.full_name.errors %}<small class="danger-text">{{ form.full_name.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>كلمة المرور</span>
+                {{ form.password }}
+                {% if form.password.errors %}<small class="danger-text">{{ form.password.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>الدور / الصلاحية</span>
+                {{ form.role }}
+            </label>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+                <button class="btn btn-navy" type="submit">حفظ المستخدم</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<section class="card role-guide">
+    <header class="card-head"><h2>مراتب الصلاحيات</h2></header>
+    <ul class="role-guide-list">
+        {% for title, text in role_guide %}
+        <li>
+            <strong>{{ title }}</strong>
+            <span>{{ text }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}

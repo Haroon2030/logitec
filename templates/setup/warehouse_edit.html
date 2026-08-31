@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل مستودع{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="المستودعات" %}
+<div class="page-head">
+    <h1>تعديل المستودع {{ item.code }}</h1>
+</div>
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field"><span>رقم المستودع</span>{{ form.code }}{% if form.code.errors %}<small class="danger-text">{{ form.code.errors|striptags }}</small>{% endif %}</label>
+        <label class="field"><span>اسم المستودع</span>{{ form.name }}{% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}</label>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'warehouses' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}إعدادات الحساب{% endblock %}
+
+{% block content %}
+<nav class="crumbs">لوحة المعلومات <span>›</span> إعدادات الحساب</nav>
+<h1 class="page-title">إعدادات الحساب</h1>
+
+<div class="settings-layout">
+    <section class="card settings-form">
+        <div class="tabs">
+            <a class="{% if tab == 'general' %}is-on{% endif %}" href="?tab=general">الإعدادات العامة</a>
+            <a class="{% if tab == 'security' %}is-on{% endif %}" href="?tab=security">الأمان وكلمة المرور</a>
+            <a class="{% if tab == 'notifications' %}is-on{% endif %}" href="?tab=notifications">الإشعارات</a>
+        </div>
+
+        {% if tab == "general" %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="profile">
+            <h2>المعلومات الأساسية</h2>
+            <div class="form-grid">
+                <label class="field">
+                    <span>الاسم الأول</span>
+                    {{ profile_form.first_name }}
+                </label>
+                <label class="field">
+                    <span>اسم العائلة</span>
+                    {{ profile_form.last_name }}
+                </label>
+            </div>
+            <label class="field">
+                <span>البريد الإلكتروني</span>
+                {{ profile_form.email }}
+                <small class="muted">لتغيير البريد تواصل مع مسؤول النظام.</small>
+            </label>
+            <label class="field">
+                <span>الدور / الصلاحية</span>
+                <input class="field-input" type="text" value="{{ perms.role_label }}" readonly>
+                <small class="muted">يحددها سوبر ادمن من شاشة المستخدمين.</small>
+            </label>
+
+            <h2>تفضيلات العرض</h2>
+            <label class="field">
+                <span>المنطقة الزمنية</span>
+                {{ profile_form.timezone_name }}
+            </label>
+            <label class="field">
+                <span>اللغة المفضلة</span>
+                {{ profile_form.language }}
+            </label>
+
+            <div class="modal-actions">
+                <a class="btn btn-ghost" href="{% url 'settings' %}">إلغاء</a>
+                <button class="btn btn-navy" type="submit">حفظ التغييرات</button>
+            </div>
+        </form>
+        {% elif tab == "security" %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="password">
+            <h2>تغيير كلمة المرور</h2>
+            {% for field in password_form %}
+            <label class="field">
+                <span>{{ field.label }}</span>
+                {{ field }}
+                {% if field.errors %}<small class="danger-text">{{ field.errors|striptags }}</small>{% endif %}
+            </label>
+            {% endfor %}
+            <div class="modal-actions">
+                <button class="btn btn-navy" type="submit">تحديث كلمة المرور</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="notify-box">
+            <h2>تفضيلات الإشعارات</h2>
+            <label class="check"><input type="checkbox" checked> تنبيه تأخر أمر التوريد</label>
+            <label class="check"><input type="checkbox" checked> إشعار إرسال الأمر للمورد والمستودع</label>
+            <label class="check"><input type="checkbox" checked> إشعار تعليم الأمر كمستلم</label>
+            <label class="check"><input type="checkbox"> ملخص يومي بالبريد</label>
+        </div>
+        {% endif %}
+    </section>
+
+    <aside class="card profile-card">
+        <div class="profile-photo">{{ user.first_name|slice:":1" }}{{ user.last_name|slice:":1" }}</div>
+        <h2>{{ user.get_full_name }}</h2>
+        <span class="chip">{{ profile.role }}</span>
+        <ul class="meta-list">
+            <li>
+                {% include "partials/icon.html" with name="mail" %}
+                {{ user.email }}
+            </li>
+            <li>
+                {% include "partials/icon.html" with name="phone" %}
+                {{ profile.phone }}
+            </li>
+            <li>
+                {% include "partials/icon.html" with name="building" %}
+                {{ profile.branch }}
+            </li>
+        </ul>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn btn-ghost btn-block" type="submit">تسجيل الخروج</button>
+        </form>
+    </aside>
+</div>
+{% endblock %}

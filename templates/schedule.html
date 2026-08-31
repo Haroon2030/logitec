@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}جدولة الاستلام{% endblock %}
+{% block search_action %}{% url 'schedule' %}{% endblock %}
+{% block search_placeholder %}بحث في الجداول...{% endblock %}
+
+{% block content %}
+<div class="schedule-layout {% if not perms.schedule_assign %}is-readonly{% endif %}">
+    <aside class="unscheduled card">
+        <h2>تسليمات غير مجدولة</h2>
+        <p class="muted">{% if perms.schedule_assign %}اسحب وأسقط لتعيين خانة{% else %}عرض الجدول فقط — لا يمكنك تعيين التسليمات{% endif %}</p>
+        <input class="field-input" id="ship-filter" type="search" placeholder="تصفية حسب الشحنة...">
+        <div class="ship-list" id="unscheduled-list">
+            {% for ship in unscheduled %}
+            <article class="ship-card" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ ship.pk }}">
+                <strong>{{ ship.number }}</strong>
+                <span>{{ ship.title }}</span>
+                <small>الحجم: {{ ship.pallets }} بليت</small>
+            </article>
+            {% empty %}
+            <p class="muted">لا توجد شحنات معلّقة</p>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <section class="card schedule-main">
+        <header class="schedule-head">
+            <div>
+                <h1>جدولة الاستلام المستودعي</h1>
+                <div class="seg">
+                    <a class="{% if view == 'day' %}is-on{% endif %}" href="?view=day">يوم</a>
+                    <a class="{% if view == 'week' %}is-on{% endif %}" href="?view=week">أسبوع</a>
+                    <a class="{% if view == 'month' %}is-on{% endif %}" href="?view=month">شهر</a>
+                </div>
+            </div>
+            <div class="date-nav">
+                <span>{{ target_date|date:"d M, Y" }}</span>
+            </div>
+        </header>
+
+        <div class="sched-grid">
+            <div class="sched-corner"></div>
+            {% for warehouse in warehouses %}
+            <div class="sched-wh">
+                <strong>{{ warehouse.name }} ({{ warehouse.city }})</strong>
+                <small>الإشغال {{ warehouse.capacity_percent }}%</small>
+                <div class="cap"><i style="width: {{ warehouse.capacity_percent }}%"></i></div>
+            </div>
+            {% endfor %}
+
+            {% for row in rows %}
+            <div class="sched-hour">{{ row.hour|stringformat:"02d" }}:00</div>
+            {% for cell in row.cells %}
+            <div class="sched-cell drop-zone" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}">
+                {% if cell.shipment %}
+                <article class="slot slot-{{ cell.shipment.status }}">
+                    <strong>{{ cell.shipment.number }}</strong>
+                    <span>{{ cell.shipment.title }} — {{ cell.shipment.pallets }} بليت</span>
+                    <em>{{ cell.shipment.get_status_display }}</em>
+                </article>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+{% if perms.schedule_assign %}
+<form id="assign-form" method="post" action="{% url 'assign_shipment' %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="shipment_id" id="assign-shipment">
+    <input type="hidden" name="warehouse_id" id="assign-warehouse">
+    <input type="hidden" name="hour" id="assign-hour">
+</form>
+{% endif %}
+{% endblock %}

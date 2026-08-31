@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}دليل الأقسام{% endblock %}
+{% block search_action %}{% url 'departments' %}{% endblock %}
+{% block search_placeholder %}بحث برقم القسم أو الاسم...{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="دليل الأقسام" %}
+<div class="page-head">
+    <div>
+        <h1>دليل الأقسام</h1>
+        <p class="muted">رقم القسم واسم القسم</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'export_departments' %}{% if export_query %}?{{ export_query }}{% endif %}">
+            {% include "partials/icon.html" with name="excel" %}
+            تصدير Excel
+        </a>
+        {% if perms.departments_manage %}
+        <button class="btn btn-navy" type="button" data-open="create-modal">
+            {% include "partials/icon.html" with name="plus" %}
+            إضافة قسم
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<section class="card excel-card">
+    <div class="table-wrap excel-wrap">
+        <table class="data-table excel-table">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>رقم القسم</th>
+                    <th>اسم القسم</th>
+                    <th>الإجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in items %}
+                <tr>
+                    <td class="row-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                    <td class="mono">{{ row.code }}</td>
+                    <td>{{ row.name }}</td>
+                    <td class="row-actions">
+                        {% if perms.departments_manage %}
+                        {% action "edit" "department_edit" row.pk %}
+                        {% action "delete" "department_delete" row.pk row.name %}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="muted">لا توجد أقسام</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-foot">
+        <span>عرض {{ page_obj.start_index }} إلى {{ page_obj.end_index }} من {{ page_obj.paginator.count }} قسم</span>
+        <a class="text-link" href="{% url 'export_departments' %}{% if export_query %}?{{ export_query }}{% endif %}">تحميل ملف Excel</a>
+    </footer>
+    {% include "partials/pagination.html" %}
+</section>
+
+{% if perms.departments_manage %}
+<div class="modal {% if form.errors %}is-open{% endif %}" id="create-modal" {% if not form.errors %}hidden{% endif %}>
+    <div class="modal-card">
+        <header>
+            <h2>إضافة قسم</h2>
+            <button type="button" class="icon-btn" data-close>×</button>
+        </header>
+        <form method="post">
+            {% csrf_token %}
+            <label class="field"><span>رقم القسم</span>{{ form.code }}{% if form.code.errors %}<small class="danger-text">{{ form.code.errors|striptags }}</small>{% endif %}</label>
+            <label class="field"><span>اسم القسم</span>{{ form.name }}{% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}</label>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+                <button class="btn btn-navy" type="submit">حفظ القسم</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

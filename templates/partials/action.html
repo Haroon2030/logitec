@@ -1,0 +1,14 @@
+{% if is_post %}
+<form class="act-form" method="post" action="{{ href }}"{% if confirm %} onsubmit="return confirm('{{ confirm|escapejs }}');"{% endif %}>
+    {% csrf_token %}
+    <button class="act-btn act-{{ kind }}" type="submit" title="{{ label }}">
+        {% include "partials/icon.html" with name=icon %}
+        <span>{{ label }}</span>
+    </button>
+</form>
+{% else %}
+<a class="act-btn act-{{ kind }}" href="{{ href }}" title="{{ label }}">
+    {% include "partials/icon.html" with name=icon %}
+    <span>{{ label }}</span>
+</a>
+{% endif %}

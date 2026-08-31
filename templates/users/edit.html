@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل مستخدم{% endblock %}
+
+{% block content %}
+<nav class="crumbs">لوحة المعلومات <span>›</span> <a href="{% url 'users' %}">إدارة المستخدمين</a> <span>›</span> تعديل</nav>
+<div class="page-head">
+    <h1>تعديل المستخدم {{ user_obj.username }}</h1>
+</div>
+
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field">
+            <span>رقم المستخدم</span>
+            {{ form.username }}
+            {% if form.username.errors %}<small class="danger-text">{{ form.username.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>الاسم</span>
+            {{ form.full_name }}
+            {% if form.full_name.errors %}<small class="danger-text">{{ form.full_name.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>الدور / الصلاحية</span>
+            {{ form.role }}
+        </label>
+        <label class="field">
+            <span>البريد</span>
+            {{ form.email }}
+            {% if form.email.errors %}<small class="danger-text">{{ form.email.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>الهاتف</span>
+            {{ form.phone }}
+        </label>
+        <label class="field">
+            <span>الفرع</span>
+            {{ form.branch }}
+        </label>
+        <label class="field">
+            <span>كلمة المرور الجديدة</span>
+            {{ form.password }}
+            <small class="muted">اترك الحقل فارغاً إذا لا تريد تغيير كلمة المرور</small>
+            {% if form.password.errors %}<small class="danger-text">{{ form.password.errors|striptags }}</small>{% endif %}
+        </label>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'users' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

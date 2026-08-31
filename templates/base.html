@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}LogisticsPro{% endblock %} · منصة تنسيق المشتريات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <script>
+        (function () {
+            var saved = localStorage.getItem("sidebar-collapsed");
+            var collapsed = saved === null ? window.innerWidth <= 1100 : saved === "1";
+            if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+        })();
+    </script>
+</head>
+<body class="app-body">
+    <aside class="sidebar" id="app-sidebar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="16" r="14" fill="#dbeafe"/><path d="M8 17.5c3.2-1.2 6.4 2.4 12.2-1.6" stroke="#2563eb" stroke-width="2" fill="none"/><path d="M9 21h14M10 12h5l2 3h6" stroke="#3b82f6" stroke-width="1.6" fill="none"/></svg>
+            </span>
+            <div>
+                <strong>LogisticsPro</strong>
+            </div>
+        </div>
+
+        {% if perms.requests_create %}
+        <a class="new-request-btn" href="{% url 'requests' %}?new=1"><span class="btn-plus">+</span><span class="btn-text"> إنشاء أمر توريد</span></a>
+        {% endif %}
+
+        <nav class="side-nav">
+            {% for item in nav_items %}
+            {% if item.children %}
+            <div class="nav-group" data-nav-group="{{ item.name }}">
+                <button class="side-link nav-parent {% if active_nav == item.name %}is-active{% endif %}" type="button" aria-expanded="false">
+                    {% include "partials/icon.html" with name=item.icon %}
+                    <span>{{ item.label }}</span>
+                    <svg class="nav-caret" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </button>
+                <div class="side-sub">
+                    {% for child in item.children %}
+                    <a class="side-sublink {% if setup_tab == child.name %}is-active{% endif %}" href="{{ child.url }}">{{ child.label }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <a class="side-link {% if active_nav == item.name %}is-active{% endif %}" href="{{ item.url }}">
+                {% include "partials/icon.html" with name=item.icon %}
+                <span>{{ item.label }}</span>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </nav>
+
+        <div class="side-footer">
+            {% if perms.role_label %}
+            <div class="side-role">{{ perms.role_label }}</div>
+            {% endif %}
+            {% if perms.settings %}
+            <a class="side-link {% if active_nav == 'settings' %}is-active{% endif %}" href="{% url 'settings' %}">
+                {% include "partials/icon.html" with name="settings" %}
+                <span>إعدادات الحساب</span>
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="shell">
+        <button class="sidebar-toggle" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="طي القائمة" title="طي القائمة">
+            <svg class="toggle-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 6l6 6-6 6"/>
+            </svg>
+            <span class="toggle-label">طي القائمة</span>
+        </button>
+        <header class="topbar">
+            <div class="topbar-title">{% block header_title %}منصة تنسيق المشتريات{% endblock %}</div>
+            <form class="search" action="{% block search_action %}{% url 'requests' %}{% endblock %}" method="get">
+                <span class="search-icon" aria-hidden="true">{% include "partials/icon.html" with name="search" %}</span>
+                <input type="search" name="q" value="{{ query|default:'' }}" placeholder="{% block search_placeholder %}بحث...{% endblock %}" aria-label="بحث">
+                <button class="search-btn" type="submit">بحث</button>
+            </form>
+            <div class="topbar-actions">
+                <button class="icon-btn" type="button" title="المساعدة">{% include "partials/icon.html" with name="help" %}</button>
+                <button class="icon-btn" type="button" title="التنبيهات">
+                    {% include "partials/icon.html" with name="bell" %}
+                    <i class="dot"></i>
+                </button>
+                <a class="avatar" href="{% url 'settings' %}" title="{{ user.get_full_name }}">
+                    {{ user.first_name|slice:":1"|default:"أ" }}
+                </a>
+            </div>
+        </header>
+
+        <main class="page">
+            {% if messages %}
+            <div class="flash-stack">
+                {% for message in messages %}
+                <div class="flash flash-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% block extra_js %}{% endblock %}
+    <script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>

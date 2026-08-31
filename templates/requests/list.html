@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load humanize ui %}
+
+{% block title %}أوامر التوريد{% endblock %}
+{% block search_placeholder %}بحث في أوامر التوريد...{% endblock %}
+
+{% block content %}
+<nav class="crumbs">لوحة المعلومات <span>›</span> أوامر التوريد</nav>
+<div class="page-head">
+    <div>
+        <h1>سجل أوامر التوريد</h1>
+        <p class="muted">دائرة المشتريات ترفع الملفات وتُرسلها إلى المورد والمستودع معاً</p>
+    </div>
+    <div class="actions">
+        {% if perms.requests_export %}
+        <a class="btn btn-ghost" href="{% url 'export_requests' %}{% if export_query %}?{{ export_query }}{% endif %}">
+            {% include "partials/icon.html" with name="excel" %}
+            تصدير Excel
+        </a>
+        {% endif %}
+        {% if perms.requests_create %}
+        <button class="btn btn-navy" type="button" data-open="create-modal">
+            {% include "partials/icon.html" with name="plus" %}
+            رفع أمر توريد
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<form class="filters" method="get" id="filters">
+    <label>
+        الحالة
+        <select name="status" class="field-input" onchange="this.form.submit()">
+            <option value="">الكل</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        المورد
+        <select name="supplier" class="field-input" onchange="this.form.submit()">
+            <option value="">الكل</option>
+            {% for supplier in suppliers %}
+            <option value="{{ supplier.pk }}" {% if selected_supplier == supplier.pk|stringformat:"s" %}selected{% endif %}>{{ supplier.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        المستودع
+        <select name="warehouse" class="field-input" onchange="this.form.submit()">
+            <option value="">الكل</option>
+            {% for warehouse in warehouses %}
+            <option value="{{ warehouse.pk }}" {% if selected_warehouse == warehouse.pk|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }} — {{ warehouse.city }}</option>
+            {% endfor %}
+        </select>
+    </label>
+</form>
+
+<section class="card excel-card">
+    <div class="table-wrap excel-wrap">
+        <table class="data-table excel-table">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>رقم الطلب</th>
+                    <th>المصدر</th>
+                    <th>رقم المورد</th>
+                    <th>اسم المورد</th>
+                    <th>المستودع</th>
+                    <th>المدينة</th>
+                    <th>الملفات</th>
+                    <th>الأولوية</th>
+                    <th>الحالة</th>
+                    <th>التوجيه</th>
+                    <th>التاريخ</th>
+                    <th>الإجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in requests_qs %}
+                <tr>
+                    <td class="row-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                    <td><a class="mono" href="{% url 'request_detail' row.pk %}">{{ row.number }}</a></td>
+                    <td>دائرة المشتريات</td>
+                    <td class="mono">{{ row.supplier.code }}</td>
+                    <td>{{ row.supplier.name }}</td>
+                    <td>{% if row.warehouse %}{{ row.warehouse.name }}{% else %}—{% endif %}</td>
+                    <td>{% if row.warehouse %}{{ row.warehouse.city }}{% else %}—{% endif %}</td>
+                    <td>
+                        {% if row.files.exists %}
+                            {% for file in row.files.all %}
+                            <a class="text-link" href="{{ file.file.url }}" target="_blank" rel="noopener">{{ file.name }}</a>{% if not forloop.last %}، {% endif %}
+                            {% endfor %}
+                        {% elif row.attachment %}
+                        <a class="text-link" href="{{ row.attachment.url }}" target="_blank" rel="noopener">{{ row.attachment_name }}</a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td><span class="badge priority-{{ row.priority }}">{{ row.get_priority_display }}</span></td>
+                    <td><span class="badge status-{{ row.status }}">{{ row.get_status_display }}</span></td>
+                    <td>
+                        {% if row.sent_to_supplier_at and row.sent_to_warehouse_at %}
+                        <span class="badge status-sent">أُرسل للجهتين</span>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td class="mono">{% if row.created_at %}{{ row.created_at|date:"Y-m-d" }}{% endif %}</td>
+                    <td class="row-actions">{% action "view" "request_detail" row.pk %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="13" class="muted">لا توجد طلبات مطابقة</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-foot">
+        <span>عرض {{ page_obj.start_index }} إلى {{ page_obj.end_index }} من {{ page_obj.paginator.count }} طلب</span>
+        {% if perms.requests_export %}
+        <a class="text-link" href="{% url 'export_requests' %}{% if export_query %}?{{ export_query }}{% endif %}">تحميل ملف Excel</a>
+        {% endif %}
+    </footer>
+    {% include "partials/pagination.html" %}
+</section>
+
+{% if perms.requests_create %}
+<div class="modal {% if request.GET.new or form.errors %}is-open{% endif %}" id="create-modal" {% if not request.GET.new and not form.errors %}hidden{% endif %}>
+    <div class="modal-card">
+        <header>
+            <h2>إصدار أمر توريد</h2>
+            <button type="button" class="icon-btn" data-close>×</button>
+        </header>
+        <p class="muted modal-intro">الملفات تخرج من دائرة المشتريات وتُرسل مباشرة إلى المورد والمستودع.</p>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="field">
+                    <span>المورد</span>
+                    {{ form.supplier }}
+                    {% if form.supplier.errors %}<small class="danger-text">{{ form.supplier.errors|striptags }}</small>{% endif %}
+                </label>
+                <label class="field">
+                    <span>المستودع</span>
+                    {{ form.warehouse }}
+                    {% if form.warehouse.errors %}<small class="danger-text">{{ form.warehouse.errors|striptags }}</small>{% endif %}
+                </label>
+            </div>
+            <label class="field">
+                <span>الأولوية</span>
+                {{ form.priority }}
+            </label>
+            <label class="field">
+                <span>ملفات طلب التوريد</span>
+                {{ form.files }}
+                {% if form.files.errors %}<small class="danger-text">{{ form.files.errors|striptags }}</small>{% endif %}
+                <small class="muted">يمكن اختيار أكثر من ملف. PDF أو Excel أو صورة.</small>
+            </label>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+                <button class="btn btn-navy" type="submit">إرسال للمورد والمستودع</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

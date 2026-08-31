@@ -1,0 +1,23 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="ترقيم الصفحات">
+    {% if page_obj.has_previous %}
+    <a class="pager-btn" href="?{% if export_query %}{{ export_query }}&{% endif %}page={{ page_obj.previous_page_number }}">السابق</a>
+    {% else %}
+    <span class="pager-btn is-disabled">السابق</span>
+    {% endif %}
+
+    {% for n in page_obj.paginator.page_range %}
+        {% if n == page_obj.number %}
+        <span class="pager-num is-on" aria-current="page">{{ n }}</span>
+        {% else %}
+        <a class="pager-num" href="?{% if export_query %}{{ export_query }}&{% endif %}page={{ n }}">{{ n }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a class="pager-btn" href="?{% if export_query %}{{ export_query }}&{% endif %}page={{ page_obj.next_page_number }}">التالي</a>
+    {% else %}
+    <span class="pager-btn is-disabled">التالي</span>
+    {% endif %}
+</nav>
+{% endif %}

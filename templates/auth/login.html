@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>تسجيل الدخول · Logistics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="login-body">
+    <div class="iso-bg" aria-hidden="true"></div>
+    <main class="login-card">
+        <div class="login-brand">
+            <span class="login-mark">{% include "partials/icon.html" with name="truck" %}</span>
+            <h1>Logistics Hub</h1>
+            <p>بوابة إدارة سلسلة التوريد</p>
+        </div>
+
+        <form method="post" class="login-form" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="flash flash-error">{{ form.non_field_errors|striptags }}</div>
+            {% endif %}
+
+            <label class="field">
+                <span>{{ form.username.label }}</span>
+                <div class="field-wrap">
+                    <i>{% include "partials/icon.html" with name="mail" %}</i>
+                    {{ form.username }}
+                </div>
+            </label>
+
+            <label class="field">
+                <span>{{ form.password.label }}</span>
+                <div class="field-wrap">
+                    <i>{% include "partials/icon.html" with name="lock" %}</i>
+                    {{ form.password }}
+                </div>
+            </label>
+
+            <div class="login-row">
+                <label class="check">
+                    <input type="checkbox" name="remember" checked>
+                    <span>تذكرني</span>
+                </label>
+                <a class="text-link" href="#">هل نسيت كلمة المرور؟</a>
+            </div>
+
+            <button class="btn btn-dark btn-block" type="submit">
+                تسجيل الدخول
+                <span aria-hidden="true">←</span>
+            </button>
+        </form>
+
+        <p class="login-help">هل تحتاج إلى مساعدة؟ اتصل بالدعم الفني</p>
+        <p class="login-hint">رقم المستخدم: 1 · كلمة المرور: 526400</p>
+    </main>
+</body>
+</html>

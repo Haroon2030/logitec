@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل قسم{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="الأقسام" %}
+<div class="page-head">
+    <h1>تعديل القسم {{ item.code }}</h1>
+</div>
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field"><span>رقم القسم</span>{{ form.code }}{% if form.code.errors %}<small class="danger-text">{{ form.code.errors|striptags }}</small>{% endif %}</label>
+        <label class="field"><span>اسم القسم</span>{{ form.name }}{% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}</label>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'departments' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

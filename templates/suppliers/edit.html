@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل مورد{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="الموردون" %}
+<nav class="crumbs"><a href="{% url 'suppliers' %}">الموردون</a> <span>›</span> تعديل</nav>
+<div class="page-head">
+    <h1>تعديل المورد {{ supplier.code }}</h1>
+</div>
+
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field">
+            <span>رقم المورد</span>
+            {{ form.code }}
+            {% if form.code.errors %}<small class="danger-text">{{ form.code.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>اسم المورد</span>
+            {{ form.name }}
+            {% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}
+        </label>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'suppliers' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

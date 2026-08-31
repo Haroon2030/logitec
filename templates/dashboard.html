@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}لوحة المعلومات{% endblock %}
+{% block header_title %}منصة تنسيق المشتريات{% endblock %}
+
+{% block content %}
+<section class="hero-head">
+    <div>
+        <h1>لوحة المعلومات التشغيلية</h1>
+        <p>دائرة المشتريات ترفع الملفات وتوجهها إلى المورد والمستودع</p>
+    </div>
+    <div class="date-chip">
+        <span class="date-chip-icon">{% include "partials/icon.html" with name="calendar" %}</span>
+        <div>
+            <small>تاريخ اليوم</small>
+            <strong>{{ today|date:"j F Y" }}</strong>
+        </div>
+    </div>
+</section>
+
+<section class="kpi-grid">
+    <article class="kpi-card kpi-blue">
+        <span class="kpi-icon">{% include "partials/icon.html" with name="docs" %}</span>
+        <div class="kpi-body">
+            <span>إجمالي الطلبات النشطة</span>
+            <strong>{{ kpis.active_orders|intcomma }}</strong>
+            <em class="up">+12%</em>
+        </div>
+    </article>
+    <article class="kpi-card kpi-teal">
+        <span class="kpi-icon">{% include "partials/icon.html" with name="box" %}</span>
+        <div class="kpi-body">
+            <span>إشغال المستودعات</span>
+            <strong>{{ kpis.occupancy }}%</strong>
+            <em class="down">+5%</em>
+        </div>
+    </article>
+    <article class="kpi-card kpi-amber">
+        <span class="kpi-icon">{% include "partials/icon.html" with name="clock" %}</span>
+        <div class="kpi-body">
+            <span>بانتظار الاعتماد</span>
+            <strong>{{ kpis.pending }}</strong>
+            <em class="up">-2%</em>
+        </div>
+    </article>
+    <article class="kpi-card kpi-violet">
+        <span class="kpi-icon">{% include "partials/icon.html" with name="calendar" %}</span>
+        <div class="kpi-body">
+            <span>تسليمات مجدولة</span>
+            <strong>{{ kpis.scheduled }}</strong>
+            <em class="flat">0%</em>
+        </div>
+    </article>
+</section>
+
+<section class="dash-grid">
+    <article class="card">
+        <header class="card-head">
+            <h2>حجم أوامر التوريد الأسبوعية</h2>
+        </header>
+        <div class="chart">
+            {% for item in volumes %}
+            <div class="chart-col">
+                <div class="chart-bar {% if item.highlight %}is-hot{% endif %}" style="--h: {{ item.bar_height }}%"></div>
+                <small>{{ item.weekday }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="card">
+        <header class="card-head">
+            <h2>تنبيهات أوامر التوريد</h2>
+            {% if perms.requests_view %}
+            <a class="text-link" href="{% url 'requests' %}">سجل الأوامر</a>
+            {% endif %}
+        </header>
+        <ul class="alerts">
+            {% for alert in alerts %}
+            <li>
+                {% if alert.url %}
+                <a class="alert-item alert-{{ alert.level }}" href="{{ alert.url }}">
+                {% else %}
+                <div class="alert-item alert-{{ alert.level }}">
+                {% endif %}
+                    <span class="alert-icon">{% include "partials/icon.html" with name=alert.icon %}</span>
+                    <div>
+                        <strong>{{ alert.title }}</strong>
+                        <span>{{ alert.detail }}</span>
+                    </div>
+                {% if alert.url %}</a>{% else %}</div>{% endif %}
+            </li>
+            {% empty %}
+            <li class="muted">لا توجد تنبيهات تشغيلية على أوامر التوريد</li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="card excel-card">
+    <header class="card-head">
+        <h2>أحدث أوامر التوريد</h2>
+        <div class="actions">
+            {% if perms.requests_export %}
+            <a class="btn btn-ghost" href="{% url 'export_requests' %}">
+                {% include "partials/icon.html" with name="excel" %}
+                تصدير Excel
+            </a>
+            {% endif %}
+            {% if perms.requests_view %}
+            <a class="text-link" href="{% url 'requests' %}">عرض الكل</a>
+            {% endif %}
+        </div>
+    </header>
+    <div class="table-wrap excel-wrap">
+        <table class="data-table excel-table excel-table-dash">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>رقم الطلب</th>
+                    <th>رقم المورد</th>
+                    <th>اسم المورد</th>
+                    <th>المستودع</th>
+                    <th>الملفات</th>
+                    <th>التوجيه</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in activities %}
+                <tr>
+                    <td class="row-num">{{ forloop.counter }}</td>
+                    <td><a class="mono text-link" href="{% url 'request_detail' row.pk %}">{{ row.number }}</a></td>
+                    <td class="mono">{% if row.supplier %}{{ row.supplier.code }}{% else %}—{% endif %}</td>
+                    <td>{% if row.supplier %}{{ row.supplier.name }}{% else %}—{% endif %}</td>
+                    <td>{% if row.warehouse %}{{ row.warehouse.name }}{% else %}—{% endif %}</td>
+                    <td>
+                        {% if row.files.exists %}
+                            {% for file in row.files.all %}
+                            <a class="text-link" href="{{ file.file.url }}" target="_blank" rel="noopener">{{ file.name }}</a>{% if not forloop.last %}، {% endif %}
+                            {% endfor %}
+                        {% elif row.attachment %}
+                        <a class="text-link" href="{{ row.attachment.url }}" target="_blank" rel="noopener">{{ row.attachment_name }}</a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.sent_to_supplier_at and row.sent_to_warehouse_at %}
+                        <span class="badge status-sent">أُرسل للجهتين</span>
+                        {% else %}
+                        <span class="badge status-{{ row.status }}">{{ row.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono">{% if row.created_at %}{{ row.created_at|date:"Y-m-d" }}{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="muted">لا توجد طلبات توريد</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-foot">
+        <span>{{ activities|length }} من أحدث الطلبات</span>
+        {% if perms.requests_export %}
+        <a class="text-link" href="{% url 'export_requests' %}">تحميل ملف Excel</a>
+        {% endif %}
+    </footer>
+</section>
+{% endblock %}

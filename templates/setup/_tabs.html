@@ -1,0 +1,12 @@
+<nav class="crumbs">لوحة المعلومات <span>›</span> البيانات المرجعية <span>›</span> {{ setup_current }}</nav>
+<div class="tabs setup-tabs">
+    {% if perms.departments_view %}
+    <a class="{% if setup_tab == 'departments' %}is-on{% endif %}" href="{% url 'departments' %}">دليل الأقسام</a>
+    {% endif %}
+    {% if perms.warehouses_view %}
+    <a class="{% if setup_tab == 'warehouses' %}is-on{% endif %}" href="{% url 'warehouses' %}">دليل المستودعات</a>
+    {% endif %}
+    {% if perms.suppliers_view %}
+    <a class="{% if setup_tab == 'suppliers' %}is-on{% endif %}" href="{% url 'suppliers' %}">دليل الموردين</a>
+    {% endif %}
+</div>

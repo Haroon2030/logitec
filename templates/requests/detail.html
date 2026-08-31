@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load humanize ui %}
+
+{% block title %}{{ obj.number }}{% endblock %}
+
+{% block content %}
+<div class="detail-head">
+    <div>
+        <nav class="crumbs">أوامر التوريد <span>›</span> {{ obj.number }}</nav>
+        <h1>
+            أمر توريد
+            <span class="badge status-{{ obj.status }}">{{ obj.get_status_display }}</span>
+        </h1>
+        <p class="muted">تنسيق من دائرة المشتريات إلى المورد والمستودع</p>
+    </div>
+    <div class="actions">
+        {% if perms.requests_issue %}
+        {% action "issue" "report_issue" obj.pk %}
+        {% endif %}
+        {% if perms.requests_receive %}
+        {% action "receive" "mark_received" obj.pk %}
+        {% endif %}
+    </div>
+</div>
+
+<section class="card">
+    <header class="card-head"><h2>مسار التوجيه</h2></header>
+    <div class="route-flow">
+        <div class="route-node">
+            <strong>دائرة المشتريات</strong>
+            <small>{% if obj.created_by %}{{ obj.created_by.get_full_name|default:obj.created_by.username }}{% else %}أحمد محمود{% endif %}</small>
+        </div>
+        <span class="route-arrow" aria-hidden="true">←</span>
+        <div class="route-split">
+            <div class="route-node {% if obj.sent_to_supplier_at %}is-sent{% endif %}">
+                <strong>المورد</strong>
+                <small>{{ obj.supplier.name }}</small>
+                <em>{% if obj.sent_to_supplier_at %}أُرسل {{ obj.sent_to_supplier_at|date:"d M، h:i A" }}{% else %}لم يُرسل بعد{% endif %}</em>
+            </div>
+            <div class="route-node {% if obj.sent_to_warehouse_at %}is-sent{% endif %}">
+                <strong>المستودع</strong>
+                <small>{% if obj.warehouse %}{{ obj.warehouse.name }} — {{ obj.warehouse.city }}{% else %}غير محدد{% endif %}</small>
+                <em>{% if obj.sent_to_warehouse_at %}أُرسل {{ obj.sent_to_warehouse_at|date:"d M، h:i A" }}{% else %}لم يُرسل بعد{% endif %}</em>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="detail-grid">
+    <div class="stack">
+        <article class="card">
+            <header class="card-head"><h2>بيانات المورد</h2></header>
+            <div class="supplier-box">
+                <div class="supplier-logo">{{ obj.supplier.initials|default:"SP" }}</div>
+                <div>
+                    <strong>{{ obj.supplier.name }}</strong>
+                    <small>{{ obj.supplier.code }}</small>
+                </div>
+            </div>
+            <ul class="meta-list">
+                <li>جهة الاتصال: {{ obj.supplier.contact_name|default:"—" }}</li>
+                <li>الهاتف: {{ obj.supplier.phone|default:"—" }}</li>
+                <li>البريد: {{ obj.supplier.email|default:"—" }}</li>
+            </ul>
+        </article>
+
+        <article class="card">
+            <header class="card-head"><h2>المستودع المستلم</h2></header>
+            {% if obj.warehouse %}
+            <p class="strong">{{ obj.warehouse.name }}</p>
+            <p class="muted">{{ obj.warehouse.city }} · الإشغال {{ obj.warehouse.capacity_percent }}%</p>
+            {% else %}
+            <p class="muted">لم يُحدد مستودع بعد</p>
+            {% endif %}
+        </article>
+    </div>
+
+    <article class="card">
+        <header class="card-head">
+            <h2>ملفات طلب التوريد</h2>
+            <span class="chip">{{ obj.file_count }} ملف</span>
+        </header>
+        <ul class="file-list">
+            {% for file in obj.files.all %}
+            <li>
+                <a class="text-link" href="{{ file.file.url }}" target="_blank" rel="noopener">{{ file.name }}</a>
+                <small class="muted">{{ file.uploaded_at|date:"d M Y، h:i A" }}</small>
+            </li>
+            {% empty %}
+                {% if obj.attachment %}
+                <li>
+                    <a class="text-link" href="{{ obj.attachment.url }}" target="_blank" rel="noopener">{{ obj.attachment_name }}</a>
+                </li>
+                {% else %}
+                <li class="muted">لا توجد ملفات مرفوعة</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+{% endblock %}
