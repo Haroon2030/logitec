@@ -24,8 +24,26 @@ def env_list(name, default=""):
 
 SECRET_KEY = env("SECRET_KEY", "django-insecure-logistics-hub-dev-key-change-in-production")
 DEBUG = env_bool("DEBUG", True)
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "127.0.0.1,localhost,testserver")
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,testserver,log.alrsheed.net,72.61.107.230",
+)
+for extra_host in ("log.alrsheed.net", "72.61.107.230"):
+    if extra_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(extra_host)
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://log.alrsheed.net,http://log.alrsheed.net:7096,http://72.61.107.230,http://72.61.107.230:7096",
+)
+for extra_origin in (
+    "http://log.alrsheed.net",
+    "http://log.alrsheed.net:7096",
+    "http://72.61.107.230",
+    "http://72.61.107.230:7096",
+):
+    if extra_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(extra_origin)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
