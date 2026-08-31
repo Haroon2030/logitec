@@ -27,14 +27,33 @@ def _ssl_context(verify_ssl):
     return ssl._create_unverified_context()
 
 
+def _api_key(config):
+    from django.conf import settings as dj_settings
+
+    stored = (getattr(config, "api_key", "") or "").strip()
+    env_key = (getattr(dj_settings, "EVOLUTION_API_KEY", "") or "").strip()
+    return env_key or stored or "HARO@2030"
+
+
+def _server_url(config):
+    from django.conf import settings as dj_settings
+
+    stored = (getattr(config, "server_url", "") or "").rstrip("/")
+    env_url = (getattr(dj_settings, "EVOLUTION_SERVER_URL", "") or "").rstrip("/")
+    return stored or env_url or "http://72.61.107.230:8081"
+
+
 def _call(config, method, path, payload=None, timeout=20):
-    base = (config.server_url or "").rstrip("/")
-    if not base or not config.api_key or not config.instance_name:
+    base = _server_url(config)
+    key = _api_key(config)
+    name = (config.instance_name or "").strip()
+    if not base or not key:
         raise RuntimeError("أكمل بيانات سيرفر Evolution أولاً")
     url = f"{base}{path}"
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method=method)
-    request.add_header("apikey", config.api_key)
+    request.add_header("apikey", key)
+    request.add_header("Authorization", f"Bearer {key}")
     request.add_header("Accept", "application/json")
     if payload is not None:
         request.add_header("Content-Type", "application/json")
@@ -49,18 +68,34 @@ def _call(config, method, path, payload=None, timeout=20):
                 return {"raw": body}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
+        if exc.code == 401:
+            raise RuntimeError("مفتاح API مرفوض. استخدم HARO@2030 ثم احفظ") from exc
         raise RuntimeError(f"{exc.code}: {detail[:240]}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(str(exc.reason or exc)) from exc
 
 
 def connection_state(config):
-    path = f"/instance/connectionState/{config.instance_name}"
-    data = _call(config, "GET", path)
-    instance = data.get("instance") if isinstance(data, dict) else {}
-    if isinstance(instance, dict):
-        return instance.get("state") or data.get("state") or ""
-    return data.get("state") if isinstance(data, dict) else ""
+    name = (config.instance_name or "").strip()
+    try:
+        data = _call(config, "GET", f"/instance/connectionState/{name}")
+        instance = data.get("instance") if isinstance(data, dict) else {}
+        if isinstance(instance, dict):
+            state = instance.get("state") or data.get("state") or ""
+            if state:
+                return state
+        if isinstance(data, dict) and data.get("state"):
+            return data.get("state")
+    except RuntimeError:
+        pass
+    instances = _call(config, "GET", "/instance/fetchInstances")
+    rows = instances if isinstance(instances, list) else [instances]
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        if (item.get("name") or item.get("instanceName")) == name:
+            return item.get("connectionStatus") or item.get("status") or ""
+    return ""
 
 
 def qr_image_src(value):

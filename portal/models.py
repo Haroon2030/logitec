@@ -366,27 +366,30 @@ class WhatsAppConfig(models.Model):
     @classmethod
     def load(cls):
         from django.conf import settings as dj_settings
-        import secrets
+
+        env_key = getattr(dj_settings, "EVOLUTION_API_KEY", "") or "HARO@2030"
+        env_url = getattr(dj_settings, "EVOLUTION_SERVER_URL", "") or "http://72.61.107.230:8081"
+        env_name = getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "") or "farshops"
 
         obj, _created = cls.objects.get_or_create(
             pk=1,
             defaults={
                 "enabled": getattr(dj_settings, "EVOLUTION_NOTIFY_ENABLED", True),
-                "server_url": getattr(dj_settings, "EVOLUTION_SERVER_URL", ""),
-                "api_key": getattr(dj_settings, "EVOLUTION_API_KEY", "") or ("HARO@" + secrets.token_hex(8).upper()),
-                "instance_name": getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops"),
+                "server_url": env_url,
+                "api_key": env_key,
+                "instance_name": env_name,
                 "verify_ssl": getattr(dj_settings, "EVOLUTION_VERIFY_SSL", False),
             },
         )
         dirty = []
-        if not obj.server_url:
-            obj.server_url = getattr(dj_settings, "EVOLUTION_SERVER_URL", "")
+        if obj.server_url != env_url:
+            obj.server_url = env_url
             dirty.append("server_url")
-        if not obj.api_key:
-            obj.api_key = getattr(dj_settings, "EVOLUTION_API_KEY", "") or ("HARO@" + secrets.token_hex(8).upper())
+        if obj.api_key != env_key:
+            obj.api_key = env_key
             dirty.append("api_key")
         if not obj.instance_name:
-            obj.instance_name = getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops")
+            obj.instance_name = env_name
             dirty.append("instance_name")
         if dirty:
             obj.save(update_fields=dirty)
