@@ -366,13 +366,14 @@ class WhatsAppConfig(models.Model):
     @classmethod
     def load(cls):
         from django.conf import settings as dj_settings
+        import secrets
 
         obj, _created = cls.objects.get_or_create(
             pk=1,
             defaults={
                 "enabled": getattr(dj_settings, "EVOLUTION_NOTIFY_ENABLED", True),
                 "server_url": getattr(dj_settings, "EVOLUTION_SERVER_URL", ""),
-                "api_key": getattr(dj_settings, "EVOLUTION_API_KEY", ""),
+                "api_key": getattr(dj_settings, "EVOLUTION_API_KEY", "") or ("HARO@" + secrets.token_hex(8).upper()),
                 "instance_name": getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops"),
                 "verify_ssl": getattr(dj_settings, "EVOLUTION_VERIFY_SSL", False),
             },
@@ -382,7 +383,7 @@ class WhatsAppConfig(models.Model):
             obj.server_url = getattr(dj_settings, "EVOLUTION_SERVER_URL", "")
             dirty.append("server_url")
         if not obj.api_key:
-            obj.api_key = getattr(dj_settings, "EVOLUTION_API_KEY", "")
+            obj.api_key = getattr(dj_settings, "EVOLUTION_API_KEY", "") or ("HARO@" + secrets.token_hex(8).upper())
             dirty.append("api_key")
         if not obj.instance_name:
             obj.instance_name = getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops")

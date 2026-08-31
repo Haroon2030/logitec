@@ -85,7 +85,11 @@
                 </label>
                 <label class="field">
                     <span>مفتاح API</span>
-                    {{ form.api_key }}
+                    <div class="wa-key-row">
+                        {{ form.api_key }}
+                        <button class="btn btn-navy" type="button" id="wa-generate-key">توليد</button>
+                    </div>
+                    <small class="muted">يُولَّد تلقائياً. اضغط توليد لمفتاح جديد ثم احفظ</small>
                 </label>
             </div>
             <label class="wa-toggle wa-toggle-light">
@@ -129,6 +133,26 @@
 {% block extra_js %}
 <script>
 (function () {
+    function generateKey() {
+        const bytes = new Uint8Array(8);
+        crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes, function (b) {
+            return b.toString(16).padStart(2, "0");
+        }).join("").toUpperCase();
+        return "HARO@" + hex;
+    }
+    const keyInput = document.getElementById("id_api_key");
+    const genBtn = document.getElementById("wa-generate-key");
+    if (genBtn && keyInput) {
+        genBtn.addEventListener("click", function () {
+            keyInput.value = generateKey();
+            keyInput.focus();
+        });
+        if (!keyInput.value.trim()) {
+            keyInput.value = generateKey();
+        }
+    }
+
     const connected = {{ wa_connected|yesno:"true,false" }};
     if (connected) return;
     const badge = document.getElementById("wa-badge");
