@@ -1,3 +1,4 @@
+from calendar import SATURDAY, Calendar
 from datetime import date, datetime, timedelta
 from io import BytesIO
 
@@ -33,7 +34,6 @@ from .models import (
     Alert,
     Department,
     RequestFile,
-    Shipment,
     Supplier,
     SupplyRequest,
     UserProfile,
@@ -274,7 +274,9 @@ def dashboard(request):
         )
         // max(Warehouse.objects.count(), 1),
         "pending": SupplyRequest.objects.filter(status=SupplyRequest.Status.PENDING).count(),
-        "scheduled": Shipment.objects.exclude(status=Shipment.Status.UNSCHEDULED).count(),
+        "scheduled": SupplyRequest.objects.filter(scheduled_hour__isnull=False)
+        .exclude(status=SupplyRequest.Status.RECEIVED)
+        .count(),
     }
     return render(
         request,
@@ -491,34 +493,119 @@ def report_issue(request, pk):
     return redirect("request_detail", pk=pk)
 
 
+def parse_schedule_date(value):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return timezone.localdate()
+
+
+def open_supply_qs():
+    return (
+        SupplyRequest.objects.select_related("supplier", "warehouse")
+        .prefetch_related("files")
+        .exclude(status=SupplyRequest.Status.RECEIVED)
+    )
+
+
 @login_required
 @require_perm("schedule.view")
 def schedule(request):
     request.active_nav = "schedule"
-    target_date = date(2023, 10, 24)
+    view = request.GET.get("view") or "day"
+    if view not in {"day", "week", "month"}:
+        view = "day"
+    target_date = parse_schedule_date(request.GET.get("date"))
     warehouses = list(Warehouse.objects.all())
-    hours = [8, 9, 10, 11]
-    scheduled = {
-        f"{item.warehouse_id}-{item.scheduled_hour}": item
-        for item in Shipment.objects.select_related("warehouse").exclude(
-            status=Shipment.Status.UNSCHEDULED
-        )
-        if item.warehouse_id and item.scheduled_hour
-    }
+    hours = list(range(8, 18))
+    qs = open_supply_qs()
+    unscheduled = qs.filter(scheduled_hour__isnull=True).order_by("-created_at")
+
+    for warehouse in warehouses:
+        booked = qs.filter(warehouse=warehouse, scheduled_date=target_date, scheduled_hour__isnull=False).count()
+        warehouse.live_occupancy = min(100, int(booked / max(len(hours), 1) * 100))
+
     rows = []
-    for hour in hours:
-        rows.append(
-            {
-                "hour": hour,
-                "cells": [
+    month_weeks = []
+    if view == "day":
+        scheduled = {}
+        for item in qs.filter(scheduled_date=target_date, scheduled_hour__isnull=False):
+            if not item.warehouse_id:
+                continue
+            scheduled.setdefault(f"{item.warehouse_id}-{item.scheduled_hour}", []).append(item)
+        for hour in hours:
+            rows.append(
+                {
+                    "label": f"{hour:02d}:00",
+                    "hour": hour,
+                    "date": target_date.isoformat(),
+                    "cells": [
+                        {
+                            "warehouse": warehouse,
+                            "items": scheduled.get(f"{warehouse.id}-{hour}", []),
+                        }
+                        for warehouse in warehouses
+                    ],
+                }
+            )
+    elif view == "week":
+        days_since_saturday = (target_date.weekday() - 5) % 7
+        week_start = target_date - timedelta(days=days_since_saturday)
+        days = [week_start + timedelta(days=i) for i in range(7)]
+        scheduled = {}
+        for item in qs.filter(scheduled_date__in=days, scheduled_hour__isnull=False):
+            if not item.warehouse_id:
+                continue
+            scheduled.setdefault(f"{item.warehouse_id}-{item.scheduled_date.isoformat()}", []).append(item)
+        weekday_names = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+        for day, label in zip(days, weekday_names):
+            rows.append(
+                {
+                    "label": f"{label} {day.day}",
+                    "hour": 8,
+                    "date": day.isoformat(),
+                    "cells": [
+                        {
+                            "warehouse": warehouse,
+                            "items": scheduled.get(f"{warehouse.id}-{day.isoformat()}", []),
+                        }
+                        for warehouse in warehouses
+                    ],
+                }
+            )
+    else:
+        weeks = Calendar(firstweekday=SATURDAY).monthdayscalendar(target_date.year, target_date.month)
+        month_items = {}
+        for item in qs.filter(
+            scheduled_date__year=target_date.year,
+            scheduled_date__month=target_date.month,
+            scheduled_hour__isnull=False,
+        ):
+            month_items.setdefault(item.scheduled_date.day, []).append(item)
+        for week in weeks:
+            month_weeks.append(
+                [
                     {
-                        "warehouse": warehouse,
-                        "shipment": scheduled.get(f"{warehouse.id}-{hour}"),
+                        "day": day or "",
+                        "date": date(target_date.year, target_date.month, day).isoformat() if day else "",
+                        "count": len(month_items.get(day, [])) if day else 0,
+                        "is_today": bool(day) and date(target_date.year, target_date.month, day) == timezone.localdate(),
                     }
-                    for warehouse in warehouses
-                ],
-            }
-        )
+                    for day in week
+                ]
+            )
+
+    prev_date = target_date - timedelta(days=1 if view == "day" else 7 if view == "week" else 30)
+    next_date = target_date + timedelta(days=1 if view == "day" else 7 if view == "week" else 30)
+    if view == "month":
+        if target_date.month == 1:
+            prev_date = date(target_date.year - 1, 12, 1)
+        else:
+            prev_date = date(target_date.year, target_date.month - 1, 1)
+        if target_date.month == 12:
+            next_date = date(target_date.year + 1, 1, 1)
+        else:
+            next_date = date(target_date.year, target_date.month + 1, 1)
 
     return render(
         request,
@@ -526,9 +613,12 @@ def schedule(request):
         {
             "warehouses": warehouses,
             "rows": rows,
-            "unscheduled": Shipment.objects.filter(status=Shipment.Status.UNSCHEDULED),
+            "month_weeks": month_weeks,
+            "unscheduled": unscheduled,
             "target_date": target_date,
-            "view": request.GET.get("view", "day"),
+            "view": view,
+            "prev_date": prev_date,
+            "next_date": next_date,
         },
     )
 
@@ -537,18 +627,18 @@ def schedule(request):
 @require_POST
 @require_perm("schedule.assign")
 def assign_shipment(request):
-    shipment = get_object_or_404(Shipment, pk=request.POST.get("shipment_id"))
+    obj = get_object_or_404(SupplyRequest, pk=request.POST.get("shipment_id"))
     warehouse = get_object_or_404(Warehouse, pk=request.POST.get("warehouse_id"))
-    hour = int(request.POST.get("hour"))
-    shipment.warehouse = warehouse
-    shipment.scheduled_hour = hour
-    shipment.scheduled_date = date(2023, 10, 24)
-    shipment.status = Shipment.Status.PENDING
-    shipment.save()
+    hour = int(request.POST.get("hour") or 8)
+    target_date = parse_schedule_date(request.POST.get("date"))
+    obj.warehouse = warehouse
+    obj.scheduled_hour = hour
+    obj.scheduled_date = target_date
+    obj.save(update_fields=["warehouse", "scheduled_hour", "scheduled_date"])
     if request.headers.get("HX-Request") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"ok": True})
-    messages.success(request, f"تم جدولة {shipment.number} في {warehouse.name} الساعة {hour:02d}:00")
-    return redirect("schedule")
+    messages.success(request, f"تم جدولة {obj.number} في {warehouse.name} الساعة {hour:02d}:00")
+    return redirect(f"{reverse('schedule')}?view=day&date={target_date.isoformat()}")
 
 
 @login_required

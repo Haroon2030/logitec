@@ -2,23 +2,24 @@
 
 {% block title %}جدولة الاستلام{% endblock %}
 {% block search_action %}{% url 'schedule' %}{% endblock %}
-{% block search_placeholder %}بحث في الجداول...{% endblock %}
+{% block search_placeholder %}بحث في أوامر التوريد...{% endblock %}
 
 {% block content %}
+<nav class="crumbs">لوحة المعلومات <span>›</span> جدولة الاستلام</nav>
 <div class="schedule-layout {% if not perms.schedule_assign %}is-readonly{% endif %}">
     <aside class="unscheduled card">
-        <h2>تسليمات غير مجدولة</h2>
-        <p class="muted">{% if perms.schedule_assign %}اسحب وأسقط لتعيين خانة{% else %}عرض الجدول فقط — لا يمكنك تعيين التسليمات{% endif %}</p>
-        <input class="field-input" id="ship-filter" type="search" placeholder="تصفية حسب الشحنة...">
+        <h2>أوامر بانتظار الجدولة</h2>
+        <p class="muted">{% if perms.schedule_assign %}اسحب أمر التوريد إلى خانة المستودع والساعة{% else %}عرض الجدول فقط{% endif %}</p>
+        <input class="field-input" id="ship-filter" type="search" placeholder="تصفية برقم الأمر أو المورد...">
         <div class="ship-list" id="unscheduled-list">
             {% for ship in unscheduled %}
             <article class="ship-card" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ ship.pk }}">
                 <strong>{{ ship.number }}</strong>
-                <span>{{ ship.title }}</span>
-                <small>الحجم: {{ ship.pallets }} بليت</small>
+                <span>{% if ship.supplier %}{{ ship.supplier.name }}{% else %}بدون مورد{% endif %}</span>
+                <small>{% if ship.warehouse %}{{ ship.warehouse.name }}{% else %}بدون مستودع{% endif %} · {{ ship.file_count }} ملف</small>
             </article>
             {% empty %}
-            <p class="muted">لا توجد شحنات معلّقة</p>
+            <p class="muted">لا توجد أوامر بانتظار الجدولة</p>
             {% endfor %}
         </div>
     </aside>
@@ -28,41 +29,65 @@
             <div>
                 <h1>جدولة الاستلام المستودعي</h1>
                 <div class="seg">
-                    <a class="{% if view == 'day' %}is-on{% endif %}" href="?view=day">يوم</a>
-                    <a class="{% if view == 'week' %}is-on{% endif %}" href="?view=week">أسبوع</a>
-                    <a class="{% if view == 'month' %}is-on{% endif %}" href="?view=month">شهر</a>
+                    <a class="{% if view == 'day' %}is-on{% endif %}" href="?view=day&date={{ target_date|date:'Y-m-d' }}">يوم</a>
+                    <a class="{% if view == 'week' %}is-on{% endif %}" href="?view=week&date={{ target_date|date:'Y-m-d' }}">أسبوع</a>
+                    <a class="{% if view == 'month' %}is-on{% endif %}" href="?view=month&date={{ target_date|date:'Y-m-d' }}">شهر</a>
                 </div>
             </div>
             <div class="date-nav">
-                <span>{{ target_date|date:"d M, Y" }}</span>
+                <a class="btn btn-ghost" href="?view={{ view }}&date={{ prev_date|date:'Y-m-d' }}">السابق</a>
+                <span>{{ target_date|date:"j F Y" }}</span>
+                <a class="btn btn-ghost" href="?view={{ view }}&date={{ next_date|date:'Y-m-d' }}">التالي</a>
             </div>
         </header>
 
-        <div class="sched-grid">
+        {% if view == 'month' %}
+        <div class="month-grid">
+            <div class="month-head">سبت</div><div class="month-head">أحد</div><div class="month-head">اثنين</div>
+            <div class="month-head">ثلاثاء</div><div class="month-head">أربعاء</div><div class="month-head">خميس</div>
+            <div class="month-head">جمعة</div>
+            {% for week in month_weeks %}
+                {% for day in week %}
+                {% if day.date %}
+                <a class="month-day {% if day.is_today %}is-today{% endif %}" href="?view=day&date={{ day.date }}">
+                    <strong>{{ day.day }}</strong>
+                    <small>{% if day.count %}{{ day.count }} أمر{% else %}—{% endif %}</small>
+                </a>
+                {% else %}
+                <div class="month-day is-empty"></div>
+                {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="sched-grid" style="grid-template-columns: 90px repeat({{ warehouses|length|default:1 }}, minmax(150px, 1fr));">
             <div class="sched-corner"></div>
             {% for warehouse in warehouses %}
             <div class="sched-wh">
-                <strong>{{ warehouse.name }} ({{ warehouse.city }})</strong>
-                <small>الإشغال {{ warehouse.capacity_percent }}%</small>
-                <div class="cap"><i style="width: {{ warehouse.capacity_percent }}%"></i></div>
+                <strong>{{ warehouse.name }}{% if warehouse.city %} ({{ warehouse.city }}){% endif %}</strong>
+                <small>الإشغال {{ warehouse.live_occupancy }}%</small>
+                <div class="cap"><i style="width: {{ warehouse.live_occupancy }}%"></i></div>
             </div>
+            {% empty %}
+            <div class="sched-wh"><strong>لا توجد مستودعات</strong></div>
             {% endfor %}
 
             {% for row in rows %}
-            <div class="sched-hour">{{ row.hour|stringformat:"02d" }}:00</div>
+            <div class="sched-hour">{{ row.label }}</div>
             {% for cell in row.cells %}
-            <div class="sched-cell drop-zone" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}">
-                {% if cell.shipment %}
-                <article class="slot slot-{{ cell.shipment.status }}">
-                    <strong>{{ cell.shipment.number }}</strong>
-                    <span>{{ cell.shipment.title }} — {{ cell.shipment.pallets }} بليت</span>
-                    <em>{{ cell.shipment.get_status_display }}</em>
-                </article>
-                {% endif %}
+            <div class="sched-cell drop-zone" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}" data-date="{{ row.date }}">
+                {% for item in cell.items %}
+                <a class="slot slot-{{ item.schedule_slot }}" href="{% url 'request_detail' item.pk %}">
+                    <strong>{{ item.number }}</strong>
+                    <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %} · {{ item.file_count }} ملف</span>
+                    <em>{{ item.get_status_display }}</em>
+                </a>
+                {% endfor %}
             </div>
             {% endfor %}
             {% endfor %}
         </div>
+        {% endif %}
     </section>
 </div>
 
@@ -72,6 +97,7 @@
     <input type="hidden" name="shipment_id" id="assign-shipment">
     <input type="hidden" name="warehouse_id" id="assign-warehouse">
     <input type="hidden" name="hour" id="assign-hour">
+    <input type="hidden" name="date" id="assign-date" value="{{ target_date|date:'Y-m-d' }}">
 </form>
 {% endif %}
 {% endblock %}

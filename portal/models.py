@@ -117,6 +117,8 @@ class SupplyRequest(models.Model):
     placed_at = models.DateTimeField("تاريخ الإنشاء", null=True, blank=True)
     shipped_at = models.DateTimeField("تاريخ الشحن", null=True, blank=True)
     eta = models.DateField("الوصول المتوقع", null=True, blank=True)
+    scheduled_date = models.DateField("تاريخ الاستلام المجدول", null=True, blank=True)
+    scheduled_hour = models.PositiveSmallIntegerField("ساعة الاستلام", null=True, blank=True)
     attachment = models.FileField("الملف", upload_to="requests/", blank=True)
     created_at = models.DateTimeField("أُنشئ في", auto_now_add=True)
 
@@ -151,6 +153,14 @@ class SupplyRequest(models.Model):
         if count:
             return count
         return 1 if self.attachment else 0
+
+    @property
+    def schedule_slot(self):
+        mapping = {
+            self.Status.RECEIVED: "confirmed",
+            self.Status.DELAYED: "conflict",
+        }
+        return mapping.get(self.status, "pending")
 
     @property
     def total_quantity(self):
