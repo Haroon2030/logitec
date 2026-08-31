@@ -308,7 +308,7 @@ def request_list(request):
             obj = form.save(commit=False)
             last = SupplyRequest.objects.order_by("-id").first()
             next_num = (last.id + 1) if last else 1
-            obj.number = f"PO-{now.year}-{next_num:03d}"
+            obj.number = f"توريد-{now.year}-{next_num:03d}"
             obj.created_by = request.user
             obj.placed_at = now
             obj.shipped_at = now

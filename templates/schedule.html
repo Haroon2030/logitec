@@ -16,7 +16,11 @@
             <article class="ship-card" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ ship.pk }}">
                 <strong>{{ ship.number }}</strong>
                 <span>{% if ship.supplier %}{{ ship.supplier.name }}{% else %}بدون مورد{% endif %}</span>
-                <small>{% if ship.warehouse %}{{ ship.warehouse.name }}{% else %}بدون مستودع{% endif %} · {{ ship.file_count }} ملف</small>
+                <small>
+                    {% if ship.warehouse %}{{ ship.warehouse.name }}{% else %}بدون مستودع{% endif %}
+                    ·
+                    {% if ship.file_count == 0 %}بدون ملف{% elif ship.file_count == 1 %}ملف واحد{% else %}{{ ship.file_count }} ملفات{% endif %}
+                </small>
             </article>
             {% empty %}
             <p class="muted">لا توجد أوامر بانتظار الجدولة</p>
@@ -79,7 +83,7 @@
                 {% for item in cell.items %}
                 <a class="slot slot-{{ item.schedule_slot }}" href="{% url 'request_detail' item.pk %}">
                     <strong>{{ item.number }}</strong>
-                    <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %} · {{ item.file_count }} ملف</span>
+                    <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %}{% if item.file_count == 1 %} · ملف واحد{% elif item.file_count > 1 %} · {{ item.file_count }} ملفات{% endif %}</span>
                     <em>{{ item.get_status_display }}</em>
                 </a>
                 {% endfor %}

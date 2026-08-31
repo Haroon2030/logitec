@@ -33,7 +33,7 @@ class Command(BaseCommand):
             "globaltech": Supplier.objects.update_or_create(
                 code="SUP-GT-01",
                 defaults={
-                    "name": "GlobalTech Supplies",
+                    "name": "الإمدادات التقنية العالمية",
                     "initials": "GT",
                     "contact_name": "ليلى حسن",
                     "phone": "+971 4 200 1100",
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             "apex": Supplier.objects.update_or_create(
                 code="SUP-APX-02",
                 defaults={
-                    "name": "Apex Raw Materials",
+                    "name": "أبيكس للمواد الخام",
                     "initials": "AX",
                     "contact_name": "عمر الراشد",
                     "phone": "+966 11 440 2200",
@@ -53,7 +53,7 @@ class Command(BaseCommand):
             "nexus": Supplier.objects.update_or_create(
                 code="SUP-NX-03",
                 defaults={
-                    "name": "Nexus Packaging Solutions",
+                    "name": "نكسس لحلول التغليف",
                     "initials": "NX",
                     "contact_name": "هند العلي",
                     "phone": "+971 2 333 4400",
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             "techsupply": Supplier.objects.update_or_create(
                 code="SUP-992-HK",
                 defaults={
-                    "name": "TechSupply Global Ltd",
+                    "name": "التوريدات التقنية العالمية",
                     "initials": "TS",
                     "contact_name": "سارة تشن",
                     "phone": "+852 2849 5555",
@@ -73,7 +73,7 @@ class Command(BaseCommand):
             "metro": Supplier.objects.update_or_create(
                 code="SUP-MT-05",
                 defaults={
-                    "name": "Metro Industrial Parts",
+                    "name": "مترو للقطع الصناعية",
                     "initials": "MI",
                     "contact_name": "خالد فهد",
                     "phone": "+966 12 880 3000",
@@ -154,7 +154,7 @@ class Command(BaseCommand):
         tz = timezone.get_current_timezone()
         requests_data = [
             {
-                "number": "REQ-2024-089",
+                "number": "توريد-2024-089",
                 "supplier": suppliers["globaltech"],
                 "priority": SupplyRequest.Priority.HIGH,
                 "status": SupplyRequest.Status.APPROVED,
@@ -162,7 +162,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 16),
             },
             {
-                "number": "REQ-2024-088",
+                "number": "توريد-2024-088",
                 "supplier": suppliers["metro"],
                 "priority": SupplyRequest.Priority.MEDIUM,
                 "status": SupplyRequest.Status.PENDING,
@@ -170,7 +170,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 18),
             },
             {
-                "number": "REQ-2024-087",
+                "number": "توريد-2024-087",
                 "supplier": suppliers["nexus"],
                 "priority": SupplyRequest.Priority.LOW,
                 "status": SupplyRequest.Status.SENT,
@@ -178,7 +178,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 15),
             },
             {
-                "number": "REQ-2024-086",
+                "number": "توريد-2024-086",
                 "supplier": suppliers["apex"],
                 "priority": SupplyRequest.Priority.HIGH,
                 "status": SupplyRequest.Status.PENDING,
@@ -186,7 +186,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 14),
             },
             {
-                "number": "ORD-2023-8942",
+                "number": "توريد-2023-8942",
                 "supplier": suppliers["techsupply"],
                 "priority": SupplyRequest.Priority.HIGH,
                 "status": SupplyRequest.Status.IN_TRANSIT,
@@ -205,7 +205,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 16),
             },
             {
-                "number": "REQ-2024-085",
+                "number": "توريد-2024-085",
                 "supplier": suppliers["globaltech"],
                 "priority": SupplyRequest.Priority.MEDIUM,
                 "status": SupplyRequest.Status.IN_TRANSIT,
@@ -213,7 +213,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 16),
             },
             {
-                "number": "REQ-2024-084",
+                "number": "توريد-2024-084",
                 "supplier": suppliers["apex"],
                 "priority": SupplyRequest.Priority.HIGH,
                 "status": SupplyRequest.Status.DELAYED,
@@ -221,7 +221,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 10),
             },
             {
-                "number": "REQ-2024-083",
+                "number": "توريد-2024-083",
                 "supplier": suppliers["nexus"],
                 "priority": SupplyRequest.Priority.LOW,
                 "status": SupplyRequest.Status.RECEIVED,
@@ -229,7 +229,7 @@ class Command(BaseCommand):
                 "eta": date(2023, 10, 12),
             },
             {
-                "number": "REQ-2024-082",
+                "number": "توريد-2024-082",
                 "supplier": suppliers["metro"],
                 "priority": SupplyRequest.Priority.MEDIUM,
                 "status": SupplyRequest.Status.PREPARING,
