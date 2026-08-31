@@ -10,6 +10,6 @@
     <a class="{% if setup_tab == 'suppliers' %}is-on{% endif %}" href="{% url 'suppliers' %}">دليل الموردين</a>
     {% endif %}
     {% if perms.whatsapp_manage %}
-    <a class="{% if setup_tab == 'whatsapp' %}is-on{% endif %}" href="{% url 'whatsapp_setup' %}">تهيئة واتساب</a>
+    <a class="{% if setup_tab == 'whatsapp' %}is-on{% endif %}" href="{% url 'whatsapp_setup' %}">ربط واتساب</a>
     {% endif %}
 </div>

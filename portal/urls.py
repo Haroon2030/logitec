@@ -26,6 +26,7 @@ urlpatterns = [
     path("suppliers/<int:pk>/edit/", views.supplier_edit, name="supplier_edit"),
     path("suppliers/<int:pk>/delete/", views.supplier_delete, name="supplier_delete"),
     path("setup/whatsapp/", views.whatsapp_setup, name="whatsapp_setup"),
+    path("setup/whatsapp/live/", views.whatsapp_live, name="whatsapp_live"),
     path("users/", views.user_list, name="users"),
     path("users/export/", views.export_users, name="export_users"),
     path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),

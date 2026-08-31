@@ -1,68 +1,148 @@
 {% extends "base.html" %}
 
-{% block title %}تهيئة واتساب{% endblock %}
+{% block title %}ربط واتساب{% endblock %}
 
 {% block content %}
-{% include "setup/_tabs.html" with setup_current="تهيئة واتساب" %}
+{% include "setup/_tabs.html" with setup_current="ربط واتساب" %}
 <div class="page-head">
     <div>
-        <h1>تهيئة واتساب</h1>
-        <p class="muted">عند حفظ أمر توريد تُرسل رسالة إلى المندوب ومسؤول المستودع والمشتريات عبر Evolution API</p>
+        <h1>ربط واتساب</h1>
+        <p class="muted">اربط رقم واتساب عبر مسح رمز QR، ثم حدد أرقام المندوب والمستودع والمشتريات</p>
     </div>
-    {% if wa_status %}
-    <span class="wa-badge is-ok">الحالة: {{ wa_status }}</span>
-    {% elif wa_status_error %}
-    <span class="wa-badge is-bad">غير متصل: {{ wa_status_error }}</span>
-    {% endif %}
 </div>
 
-<section class="card wa-card">
-    <form method="post" class="wa-form">
-        {% csrf_token %}
-        <div class="wa-section">
-            <h2>الربط</h2>
-            <label class="check">{{ form.enabled }} تفعيل إرسال رسائل واتساب عند حفظ أمر التوريد</label>
-            <div class="form-grid">
-                <label class="field">
-                    <span>رابط سيرفر Evolution</span>
-                    {{ form.server_url }}
-                    <small class="muted">واجهة Evolution API على هذا السيرفر: http://72.61.107.230:8081 وليس منفذ الموقع 7096</small>
-                </label>
-                <label class="field">
-                    <span>اسم النسخة (Instance)</span>
-                    {{ form.instance_name }}
-                </label>
-            </div>
-            <label class="field">
-                <span>مفتاح API</span>
-                {{ form.api_key }}
-            </label>
-            <label class="check">{{ form.verify_ssl }} التحقق من شهادة SSL</label>
+<div class="wa-layout">
+    <section class="card wa-connect-card">
+        <div class="wa-status-row">
+            {% if wa_connected %}
+            <span class="wa-badge is-ok" id="wa-badge">متصل</span>
+            {% elif wa_status_error %}
+            <span class="wa-badge is-bad" id="wa-badge">غير متصل</span>
+            {% elif wa_status %}
+            <span class="wa-badge is-wait" id="wa-badge">{{ wa_status }}</span>
+            {% else %}
+            <span class="wa-badge is-wait" id="wa-badge">بانتظار الربط</span>
+            {% endif %}
+            <strong>{{ config.instance_name|default:"farshops" }}</strong>
         </div>
 
-        <div class="wa-section">
-            <h2>أرقام المستلمين</h2>
-            <p class="muted">أدخل الرقم بالصيغة الدولية بدون + مثل 9665xxxxxxxx</p>
-            <div class="form-grid">
+        <div class="wa-qr-box" id="wa-qr-box">
+            {% if wa_connected %}
+            <div class="wa-connected-msg" id="wa-connected-msg">
+                {% include "partials/icon.html" with name="check" %}
+                <p>واتساب مربوط وجاهز لإرسال رسائل أوامر التوريد</p>
+            </div>
+            {% elif qr_src %}
+            <img id="wa-qr" src="{{ qr_src }}" alt="رمز QR لواتساب">
+            {% else %}
+            <div class="wa-qr-empty" id="wa-qr-empty">
+                <p>اضغط «ربط الجوال» لعرض رمز QR</p>
+            </div>
+            <img id="wa-qr" alt="رمز QR لواتساب" hidden>
+            {% endif %}
+        </div>
+        <p class="muted wa-help" id="wa-help">
+            من الجوال: واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز
+        </p>
+        {% if pairing_code %}
+        <p class="wa-pairing">رمز الاقتران: <b>{{ pairing_code }}</b></p>
+        {% endif %}
+        {% if wa_status_error %}
+        <p class="danger-text">{{ wa_status_error }}</p>
+        {% endif %}
+
+        <div class="wa-connect-actions">
+            {% if wa_connected %}
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-ghost" type="submit" name="action" value="logout">قطع الاتصال</button>
+            </form>
+            {% else %}
+            <a class="btn btn-navy" href="{% url 'whatsapp_setup' %}?connect=1">ربط الجوال</a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card wa-card">
+        <form method="post" class="wa-form">
+            {% csrf_token %}
+            <div class="wa-section">
+                <h2>إعدادات السيرفر</h2>
+                <label class="check">{{ form.enabled }} تفعيل إرسال الرسائل عند حفظ أمر التوريد</label>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>رابط سيرفر Evolution</span>
+                        {{ form.server_url }}
+                    </label>
+                    <label class="field">
+                        <span>اسم النسخة</span>
+                        {{ form.instance_name }}
+                    </label>
+                </div>
                 <label class="field">
-                    <span>جوال المندوب</span>
-                    {{ form.phone_rep }}
+                    <span>مفتاح API</span>
+                    {{ form.api_key }}
                 </label>
+                <label class="check">{{ form.verify_ssl }} التحقق من شهادة SSL</label>
+            </div>
+
+            <div class="wa-section">
+                <h2>أرقام المستلمين</h2>
+                <p class="muted">الصيغة الدولية بدون + مثل 9665xxxxxxxx</p>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>جوال المندوب</span>
+                        {{ form.phone_rep }}
+                    </label>
+                    <label class="field">
+                        <span>جوال مسؤول المستودع</span>
+                        {{ form.phone_warehouse }}
+                    </label>
+                </div>
                 <label class="field">
-                    <span>جوال مسؤول المستودع</span>
-                    {{ form.phone_warehouse }}
+                    <span>جوال المشتريات</span>
+                    {{ form.phone_purchasing }}
                 </label>
             </div>
-            <label class="field">
-                <span>جوال المشتريات</span>
-                {{ form.phone_purchasing }}
-            </label>
-        </div>
 
-        <div class="modal-actions">
-            <button class="btn btn-ghost" type="submit" name="action" value="test">إرسال تجريبي</button>
-            <button class="btn btn-navy" type="submit" name="action" value="save">حفظ التهيئة</button>
-        </div>
-    </form>
-</section>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="submit" name="action" value="test">إرسال تجريبي</button>
+                <button class="btn btn-navy" type="submit" name="action" value="save">حفظ</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const connected = {{ wa_connected|yesno:"true,false" }};
+    if (connected) return;
+    const badge = document.getElementById("wa-badge");
+    const qr = document.getElementById("wa-qr");
+    const empty = document.getElementById("wa-qr-empty");
+    const liveUrl = "{% url 'whatsapp_live' %}";
+    async function tick() {
+        try {
+            const res = await fetch(liveUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+            const data = await res.json();
+            if (data.state === "open") {
+                window.location.reload();
+                return;
+            }
+            if (badge && data.state) badge.textContent = data.state;
+            if (data.qr && qr) {
+                qr.src = data.qr;
+                qr.hidden = false;
+                if (empty) empty.hidden = true;
+            }
+        } catch (err) {}
+    }
+    if (window.location.search.indexOf("connect=1") !== -1) {
+        setInterval(tick, 5000);
+        tick();
+    }
+})();
+</script>
 {% endblock %}

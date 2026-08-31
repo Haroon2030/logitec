@@ -29,7 +29,7 @@ def portal_context(request):
     if has_perm(user, "suppliers.view"):
         children.append({"name": "suppliers", "label": "دليل الموردين", "url": reverse("suppliers")})
     if has_perm(user, "whatsapp.manage"):
-        children.append({"name": "whatsapp", "label": "تهيئة واتساب", "url": reverse("whatsapp_setup")})
+        children.append({"name": "whatsapp", "label": "ربط واتساب", "url": reverse("whatsapp_setup")})
     if children:
         nav.append(
             {
@@ -42,6 +42,8 @@ def portal_context(request):
         )
     if has_perm(user, "users.manage"):
         nav.append({"name": "users", "label": "إدارة المستخدمين", "icon": "users", "url": reverse("users")})
+    if has_perm(user, "whatsapp.manage"):
+        nav.append({"name": "whatsapp", "label": "ربط واتساب", "icon": "whatsapp", "url": reverse("whatsapp_setup")})
 
     return {
         "nav_items": nav,

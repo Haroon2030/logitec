@@ -855,7 +855,36 @@ a.alert-item:hover { filter: brightness(0.98); }
 }
 .login-help, .login-hint { color: var(--muted); margin-top: 14px; font-size: 13px; }
 
-.wa-card { max-width: 820px; padding: 22px 24px 18px; }
+.wa-card { max-width: none; padding: 22px 24px 18px; }
+.wa-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+    align-items: start;
+}
+.wa-connect-card { padding: 22px; text-align: center; }
+.wa-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.wa-qr-box {
+    min-height: 240px;
+    border: 1px dashed #bfdbfe;
+    border-radius: 16px;
+    background: #f8fbff;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+}
+.wa-qr-box img { width: 220px; height: 220px; border-radius: 12px; background: #fff; }
+.wa-qr-empty, .wa-connected-msg { color: #475569; }
+.wa-connected-msg { color: #047857; display: grid; gap: 8px; justify-items: center; }
+.wa-help { margin: 12px 0 8px; }
+.wa-pairing { font-size: 15px; }
+.wa-connect-actions { margin-top: 14px; display: flex; justify-content: center; }
 .wa-section { margin-bottom: 22px; padding-bottom: 8px; border-bottom: 1px solid #eef2f7; }
 .wa-section:last-of-type { border-bottom: 0; }
 .wa-section h2 { font-size: 16px; margin-bottom: 12px; color: #1e40af; }
@@ -868,11 +897,12 @@ a.alert-item:hover { filter: brightness(0.98); }
     font-weight: 700;
 }
 .wa-badge.is-ok { background: #ecfdf5; color: #047857; }
-.wa-badge.is-bad { background: #fef2f2; color: #b91c1c; max-width: 420px; }
+.wa-badge.is-wait { background: #eff6ff; color: #1d4ed8; }
+.wa-badge.is-bad { background: #fef2f2; color: #b91c1c; max-width: 220px; }
 .check-input { width: 18px; height: 18px; accent-color: var(--blue); }
 
 @media (max-width: 1100px) {
-    .kpi-grid, .dash-grid, .detail-grid, .schedule-layout, .settings-layout { grid-template-columns: 1fr; }
+    .kpi-grid, .dash-grid, .detail-grid, .schedule-layout, .settings-layout, .wa-layout { grid-template-columns: 1fr; }
     .topbar { grid-template-columns: 1fr auto; }
     .topbar-title { display: none; }
 }

@@ -49,7 +49,14 @@ from .roles import (
     require_perm,
     role_label,
 )
-from .whatsapp import connection_state, notify_supply_saved, send_text, recipient_list
+from .whatsapp import (
+    connection_state,
+    fetch_connect,
+    logout_instance,
+    notify_supply_saved,
+    recipient_list,
+    send_text,
+)
 
 
 class PortalLoginView(LoginView):
@@ -548,17 +555,27 @@ def settings_view(request):
 @login_required
 @require_perm("whatsapp.manage")
 def whatsapp_setup(request):
-    request.active_nav = "setup"
+    request.active_nav = "whatsapp"
     request.setup_tab = "whatsapp"
     config = WhatsAppConfig.load()
     form = WhatsAppConfigForm(instance=config)
     status = ""
     status_error = ""
+    qr_src = ""
+    pairing_code = ""
     if request.method == "POST":
+        action = request.POST.get("action") or "save"
+        if action == "logout":
+            try:
+                logout_instance(config)
+                messages.success(request, "تم قطع اتصال واتساب. امسح رمز QR للربط من جديد")
+            except Exception as exc:
+                messages.warning(request, f"تعذر قطع الاتصال: {exc}")
+            return redirect("whatsapp_setup")
         form = WhatsAppConfigForm(request.POST, instance=config)
         if form.is_valid():
             config = form.save()
-            if request.POST.get("action") == "test":
+            if action == "test":
                 sent = 0
                 errors = []
                 for label, number in recipient_list(config):
@@ -574,12 +591,20 @@ def whatsapp_setup(request):
                     messages.success(request, f"تم إرسال رسالة تجريبية إلى {sent} مستلم")
                 if errors:
                     messages.warning(request, "؛ ".join(errors))
-            else:
-                messages.success(request, "تم حفظ تهيئة واتساب")
+                return redirect("whatsapp_setup")
+            if action == "connect":
+                messages.success(request, "تم حفظ البيانات. امسح رمز QR من واتساب")
+                return redirect(reverse("whatsapp_setup") + "?connect=1")
+            messages.success(request, "تم حفظ تهيئة واتساب")
             return redirect("whatsapp_setup")
     try:
         if config.server_url and config.api_key and config.instance_name:
-            status = connection_state(config) or "unknown"
+            status = (connection_state(config) or "close").lower()
+            if request.GET.get("connect") and status != "open":
+                info = fetch_connect(config)
+                qr_src = info.get("qr") or ""
+                pairing_code = info.get("pairing") or ""
+                status = (info.get("state") or status or "connecting").lower()
     except Exception as exc:
         status_error = str(exc)
     return render(
@@ -590,8 +615,28 @@ def whatsapp_setup(request):
             "config": config,
             "wa_status": status,
             "wa_status_error": status_error,
+            "qr_src": qr_src,
+            "pairing_code": pairing_code,
+            "wa_connected": status == "open",
         },
     )
+
+
+@login_required
+@require_perm("whatsapp.manage")
+def whatsapp_live(request):
+    config = WhatsAppConfig.load()
+    payload = {"state": "", "qr": "", "pairing": "", "error": ""}
+    try:
+        payload["state"] = (connection_state(config) or "close").lower()
+        if payload["state"] != "open":
+            info = fetch_connect(config)
+            payload["qr"] = info.get("qr") or ""
+            payload["pairing"] = info.get("pairing") or ""
+            payload["state"] = (info.get("state") or payload["state"] or "connecting").lower()
+    except Exception as exc:
+        payload["error"] = str(exc)
+    return JsonResponse(payload)
 
 
 @login_required
