@@ -420,6 +420,13 @@ html.sidebar-collapsed .nav-parent { justify-content: center; }
     gap: 12px;
 }
 .chart-col { text-align: center; }
+.chart-count {
+    display: block;
+    font-size: 12px;
+    color: #1e40af;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
 .chart-bar {
     height: var(--h);
     min-height: 12px;

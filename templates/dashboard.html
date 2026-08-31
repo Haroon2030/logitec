@@ -57,11 +57,13 @@
 <section class="dash-grid">
     <article class="card">
         <header class="card-head">
-            <h2>حجم أوامر التوريد الأسبوعية</h2>
+            <h2>حجم أوامر التوريد هذا الأسبوع</h2>
+            <span class="muted">من السبت إلى الجمعة حسب تاريخ إنشاء الأمر</span>
         </header>
         <div class="chart">
             {% for item in volumes %}
             <div class="chart-col">
+                <span class="chart-count">{{ item.volume }}</span>
                 <div class="chart-bar {% if item.highlight %}is-hot{% endif %}" style="--h: {{ item.bar_height }}%"></div>
                 <small>{{ item.weekday }}</small>
             </div>

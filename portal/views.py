@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from django.contrib import messages
@@ -31,7 +31,6 @@ from .forms import (
 )
 from .models import (
     Alert,
-    DailyVolume,
     Department,
     RequestFile,
     Shipment,
@@ -168,6 +167,48 @@ def build_supply_alerts():
     return alerts[:4]
 
 
+WEEKDAY_CHART = [
+    (5, "السبت"),
+    (6, "الأحد"),
+    (0, "الاثنين"),
+    (1, "الثلاثاء"),
+    (2, "الأربعاء"),
+    (3, "الخميس"),
+    (4, "الجمعة"),
+]
+
+
+def weekly_supply_volumes(today=None):
+    today = today or timezone.localdate()
+    days_since_saturday = (today.weekday() - 5) % 7
+    week_start = today - timedelta(days=days_since_saturday)
+    week_end = week_start + timedelta(days=6)
+    start_dt = timezone.make_aware(datetime.combine(week_start, datetime.min.time()))
+    end_dt = timezone.make_aware(datetime.combine(week_end, datetime.max.time()))
+    counts = {weekday: 0 for weekday, _label in WEEKDAY_CHART}
+    created_times = SupplyRequest.objects.filter(
+        created_at__gte=start_dt,
+        created_at__lte=end_dt,
+    ).values_list("created_at", flat=True)
+    for created_at in created_times:
+        local_dt = timezone.localtime(created_at)
+        counts[local_dt.weekday()] += 1
+    max_volume = max(counts.values()) or 1
+    volumes = []
+    for weekday, label in WEEKDAY_CHART:
+        volume = counts[weekday]
+        height = int((volume / max_volume) * 100) if volume else 8
+        volumes.append(
+            {
+                "weekday": label,
+                "volume": volume,
+                "bar_height": max(height, 8),
+                "highlight": weekday == today.weekday(),
+            }
+        )
+    return volumes
+
+
 def simple_excel(title, headers, rows, widths, filename):
     workbook = Workbook()
     sheet = workbook.active
@@ -225,10 +266,7 @@ def dashboard(request):
         .prefetch_related("files")
         .order_by("-created_at", "number")[:10]
     )
-    volumes = list(DailyVolume.objects.all())
-    max_volume = max((item.volume for item in volumes), default=1)
-    for item in volumes:
-        item.bar_height = int((item.volume / max_volume) * 100)
+    volumes = weekly_supply_volumes()
     kpis = {
         "active_orders": SupplyRequest.objects.exclude(status=SupplyRequest.Status.RECEIVED).count(),
         "occupancy": int(
