@@ -27,6 +27,7 @@ from .forms import (
     SupplierForm,
     SupplyRequestForm,
     WarehouseForm,
+    WhatsAppConfigForm,
 )
 from .models import (
     Alert,
@@ -38,6 +39,7 @@ from .models import (
     SupplyRequest,
     UserProfile,
     Warehouse,
+    WhatsAppConfig,
 )
 from .roles import (
     ROLE_GUIDE,
@@ -47,6 +49,7 @@ from .roles import (
     require_perm,
     role_label,
 )
+from .whatsapp import connection_state, notify_supply_saved, send_text, recipient_list
 
 
 class PortalLoginView(LoginView):
@@ -276,6 +279,11 @@ def request_list(request):
                 request,
                 f"أُرسل طلب التوريد {obj.number} إلى المورد والمستودع",
             )
+            wa_ok, wa_detail = notify_supply_saved(obj)
+            if wa_ok:
+                messages.success(request, wa_detail)
+            else:
+                messages.warning(request, f"حُفظ الطلب دون إرسال واتساب: {wa_detail}")
             return redirect("request_detail", pk=obj.pk)
 
     page_obj, export_query = paginate_qs(request, qs)
@@ -533,6 +541,55 @@ def settings_view(request):
             "profile_form": profile_form,
             "password_form": password_form,
             "tab": tab,
+        },
+    )
+
+
+@login_required
+@require_perm("whatsapp.manage")
+def whatsapp_setup(request):
+    request.active_nav = "setup"
+    request.setup_tab = "whatsapp"
+    config = WhatsAppConfig.load()
+    form = WhatsAppConfigForm(instance=config)
+    status = ""
+    status_error = ""
+    if request.method == "POST":
+        form = WhatsAppConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            config = form.save()
+            if request.POST.get("action") == "test":
+                sent = 0
+                errors = []
+                for label, number in recipient_list(config):
+                    if not number:
+                        errors.append(f"{label}: لا يوجد رقم")
+                        continue
+                    try:
+                        send_text(config, number, "اختبار ربط واتساب من منصة التوريد")
+                        sent += 1
+                    except Exception as exc:
+                        errors.append(f"{label}: {exc}")
+                if sent:
+                    messages.success(request, f"تم إرسال رسالة تجريبية إلى {sent} مستلم")
+                if errors:
+                    messages.warning(request, "؛ ".join(errors))
+            else:
+                messages.success(request, "تم حفظ تهيئة واتساب")
+            return redirect("whatsapp_setup")
+    try:
+        if config.server_url and config.api_key and config.instance_name:
+            status = connection_state(config) or "unknown"
+    except Exception as exc:
+        status_error = str(exc)
+    return render(
+        request,
+        "setup/whatsapp.html",
+        {
+            "form": form,
+            "config": config,
+            "wa_status": status,
+            "wa_status_error": status_error,
         },
     )
 

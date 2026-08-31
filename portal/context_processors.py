@@ -28,6 +28,8 @@ def portal_context(request):
         children.append({"name": "warehouses", "label": "دليل المستودعات", "url": reverse("warehouses")})
     if has_perm(user, "suppliers.view"):
         children.append({"name": "suppliers", "label": "دليل الموردين", "url": reverse("suppliers")})
+    if has_perm(user, "whatsapp.manage"):
+        children.append({"name": "whatsapp", "label": "تهيئة واتساب", "url": reverse("whatsapp_setup")})
     if children:
         nav.append(
             {

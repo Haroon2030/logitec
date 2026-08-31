@@ -63,6 +63,7 @@ ROLE_PERMS = {
         "warehouses.manage",
         "departments.view",
         "departments.manage",
+        "whatsapp.manage",
         "settings",
     },
     SUPER_ADMIN: {"*"},
@@ -144,6 +145,7 @@ def perms_for(user):
         "suppliers_view": has_perm(user, "suppliers.view"),
         "suppliers_manage": has_perm(user, "suppliers.manage"),
         "users_manage": has_perm(user, "users.manage"),
+        "whatsapp_manage": has_perm(user, "whatsapp.manage"),
         "settings": has_perm(user, "settings"),
     }
 

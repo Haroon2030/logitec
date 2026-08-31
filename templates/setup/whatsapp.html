@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}تهيئة واتساب{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="تهيئة واتساب" %}
+<div class="page-head">
+    <div>
+        <h1>تهيئة واتساب</h1>
+        <p class="muted">عند حفظ أمر توريد تُرسل رسالة إلى المندوب ومسؤول المستودع والمشتريات عبر Evolution API</p>
+    </div>
+    {% if wa_status %}
+    <span class="wa-badge is-ok">الحالة: {{ wa_status }}</span>
+    {% elif wa_status_error %}
+    <span class="wa-badge is-bad">غير متصل: {{ wa_status_error }}</span>
+    {% endif %}
+</div>
+
+<section class="card wa-card">
+    <form method="post" class="wa-form">
+        {% csrf_token %}
+        <div class="wa-section">
+            <h2>الربط</h2>
+            <label class="check">{{ form.enabled }} تفعيل إرسال رسائل واتساب عند حفظ أمر التوريد</label>
+            <div class="form-grid">
+                <label class="field">
+                    <span>رابط سيرفر Evolution</span>
+                    {{ form.server_url }}
+                    <small class="muted">واجهة Evolution API على هذا السيرفر: http://72.61.107.230:8081 وليس منفذ الموقع 7096</small>
+                </label>
+                <label class="field">
+                    <span>اسم النسخة (Instance)</span>
+                    {{ form.instance_name }}
+                </label>
+            </div>
+            <label class="field">
+                <span>مفتاح API</span>
+                {{ form.api_key }}
+            </label>
+            <label class="check">{{ form.verify_ssl }} التحقق من شهادة SSL</label>
+        </div>
+
+        <div class="wa-section">
+            <h2>أرقام المستلمين</h2>
+            <p class="muted">أدخل الرقم بالصيغة الدولية بدون + مثل 9665xxxxxxxx</p>
+            <div class="form-grid">
+                <label class="field">
+                    <span>جوال المندوب</span>
+                    {{ form.phone_rep }}
+                </label>
+                <label class="field">
+                    <span>جوال مسؤول المستودع</span>
+                    {{ form.phone_warehouse }}
+                </label>
+            </div>
+            <label class="field">
+                <span>جوال المشتريات</span>
+                {{ form.phone_purchasing }}
+            </label>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-ghost" type="submit" name="action" value="test">إرسال تجريبي</button>
+            <button class="btn btn-navy" type="submit" name="action" value="save">حفظ التهيئة</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

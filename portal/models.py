@@ -343,3 +343,50 @@ class UserProfile(models.Model):
     @property
     def role_label_display(self):
         return role_label(self.user)
+
+
+class WhatsAppConfig(models.Model):
+    enabled = models.BooleanField("تفعيل الإشعارات", default=True)
+    server_url = models.CharField("رابط سيرفر Evolution", max_length=255, blank=True)
+    api_key = models.CharField("مفتاح API", max_length=255, blank=True)
+    instance_name = models.CharField("اسم النسخة", max_length=80, blank=True)
+    verify_ssl = models.BooleanField("التحقق من SSL", default=False)
+    phone_rep = models.CharField("جوال المندوب", max_length=40, blank=True)
+    phone_warehouse = models.CharField("جوال مسؤول المستودع", max_length=40, blank=True)
+    phone_purchasing = models.CharField("جوال المشتريات", max_length=40, blank=True)
+    updated_at = models.DateTimeField("آخر تحديث", auto_now=True)
+
+    class Meta:
+        verbose_name = "تهيئة واتساب"
+        verbose_name_plural = "تهيئة واتساب"
+
+    def __str__(self):
+        return self.instance_name or "واتساب"
+
+    @classmethod
+    def load(cls):
+        from django.conf import settings as dj_settings
+
+        obj, _created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "enabled": getattr(dj_settings, "EVOLUTION_NOTIFY_ENABLED", True),
+                "server_url": getattr(dj_settings, "EVOLUTION_SERVER_URL", ""),
+                "api_key": getattr(dj_settings, "EVOLUTION_API_KEY", ""),
+                "instance_name": getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops"),
+                "verify_ssl": getattr(dj_settings, "EVOLUTION_VERIFY_SSL", False),
+            },
+        )
+        dirty = []
+        if not obj.server_url:
+            obj.server_url = getattr(dj_settings, "EVOLUTION_SERVER_URL", "")
+            dirty.append("server_url")
+        if not obj.api_key:
+            obj.api_key = getattr(dj_settings, "EVOLUTION_API_KEY", "")
+            dirty.append("api_key")
+        if not obj.instance_name:
+            obj.instance_name = getattr(dj_settings, "EVOLUTION_INSTANCE_NAME", "farshops")
+            dirty.append("instance_name")
+        if dirty:
+            obj.save(update_fields=dirty)
+        return obj

@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
 
-from .models import Department, Supplier, SupplyRequest, UserProfile, Warehouse
+from .models import Department, Supplier, SupplyRequest, UserProfile, Warehouse, WhatsAppConfig
 from .roles import ROLE_ALIASES, ROLE_CHOICES, ROLE_LABELS, PURCHASING_STAFF, SUPER_ADMIN
 
 
@@ -251,6 +251,43 @@ class SupplierForm(forms.ModelForm):
         widgets = {
             "code": forms.TextInput(attrs={"class": "field-input", "placeholder": "مثال: SUP-100"}),
             "name": forms.TextInput(attrs={"class": "field-input", "placeholder": "اسم المورد"}),
+        }
+
+
+class WhatsAppConfigForm(forms.ModelForm):
+    class Meta:
+        model = WhatsAppConfig
+        fields = (
+            "enabled",
+            "server_url",
+            "api_key",
+            "instance_name",
+            "verify_ssl",
+            "phone_rep",
+            "phone_warehouse",
+            "phone_purchasing",
+        )
+        widgets = {
+            "enabled": forms.CheckboxInput(attrs={"class": "check-input"}),
+            "server_url": forms.URLInput(
+                attrs={
+                    "class": "field-input",
+                    "placeholder": "http://72.61.107.230:8081",
+                    "dir": "ltr",
+                }
+            ),
+            "api_key": forms.TextInput(attrs={"class": "field-input", "dir": "ltr"}),
+            "instance_name": forms.TextInput(attrs={"class": "field-input", "dir": "ltr"}),
+            "verify_ssl": forms.CheckboxInput(attrs={"class": "check-input"}),
+            "phone_rep": forms.TextInput(
+                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+            ),
+            "phone_warehouse": forms.TextInput(
+                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+            ),
+            "phone_purchasing": forms.TextInput(
+                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+            ),
         }
 
 
