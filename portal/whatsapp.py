@@ -1,7 +1,10 @@
+import base64
 import json
+import mimetypes
 import ssl
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from django.utils import timezone
 
@@ -181,6 +184,74 @@ def send_text(config, number, text):
     raise last_error or RuntimeError("تعذر إرسال الرسالة")
 
 
+def _read_file_bytes(field_file):
+    field_file.open("rb")
+    try:
+        return field_file.read()
+    finally:
+        field_file.close()
+
+
+def request_attachments(obj):
+    items = []
+    for row in obj.files.all():
+        if not row.file:
+            continue
+        items.append((row.file, row.name))
+    if not items and obj.attachment:
+        name = obj.attachment.name.rsplit("/", 1)[-1]
+        items.append((obj.attachment, name))
+    return items
+
+
+def send_document(config, number, caption, filename, raw_bytes, mime="application/pdf"):
+    path = f"/message/sendMedia/{config.instance_name}"
+    encoded = base64.b64encode(raw_bytes).decode("ascii")
+    payloads = (
+        {
+            "number": number,
+            "mediatype": "document",
+            "mimetype": mime,
+            "caption": caption,
+            "fileName": filename,
+            "media": f"data:{mime};base64,{encoded}",
+        },
+        {
+            "number": number,
+            "mediatype": "document",
+            "mimetype": mime,
+            "caption": caption,
+            "fileName": filename,
+            "media": encoded,
+        },
+    )
+    last_error = None
+    for payload in payloads:
+        try:
+            return _call(config, "POST", path, payload, timeout=90)
+        except RuntimeError as exc:
+            last_error = exc
+            if "404" in str(exc) or "400" in str(exc):
+                continue
+            raise
+    raise last_error or RuntimeError("تعذر إرسال الملف")
+
+
+def send_supply_whatsapp(config, number, text, attachments):
+    if not attachments:
+        return send_text(config, number, text)
+    last = None
+    for index, (field_file, filename) in enumerate(attachments):
+        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        caption = text if index == 0 else f"مرفق إضافي لأمر التوريد"
+        raw = _read_file_bytes(field_file)
+        if not raw:
+            continue
+        safe_name = Path(filename).name or f"tawreed-{index + 1}.pdf"
+        last = send_document(config, number, caption, safe_name, raw, mime)
+    return last or send_text(config, number, text)
+
+
 def build_supply_message(obj):
     when = timezone.localtime(obj.placed_at or obj.created_at)
     warehouse = obj.warehouse.name if obj.warehouse else "—"
@@ -209,6 +280,7 @@ def notify_supply_saved(obj):
     if not config.enabled:
         return False, "إشعارات واتساب غير مفعّلة"
     text = build_supply_message(obj)
+    attachments = request_attachments(obj)
     sent = []
     errors = []
     for label, number in recipient_list(config):
@@ -216,12 +288,13 @@ def notify_supply_saved(obj):
             errors.append(f"{label}: لا يوجد رقم")
             continue
         try:
-            send_text(config, number, text)
+            send_supply_whatsapp(config, number, text, attachments)
             sent.append(label)
         except Exception as exc:
             errors.append(f"{label}: {exc}")
+    extra = " مع الملف" if attachments else ""
     if sent and not errors:
-        return True, "تم إرسال واتساب إلى " + "، ".join(sent)
+        return True, "تم إرسال واتساب" + extra + " إلى " + "، ".join(sent)
     if sent:
         return True, "أُرسل إلى " + "، ".join(sent) + " — " + "؛ ".join(errors)
     return False, "؛ ".join(errors) or "لا توجد أرقام للمستلمين"
