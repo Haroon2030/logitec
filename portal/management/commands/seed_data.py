@@ -26,7 +26,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write("جاري تجهيز البيانات التجريبية...")
-        ensure_demo_accounts(reset_password=True)
+        ensure_demo_accounts(reset_password=False)
         user = User.objects.get(username="1")
 
         suppliers = {

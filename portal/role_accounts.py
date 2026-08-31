@@ -2,7 +2,6 @@ from django.contrib.auth.models import User
 
 from .models import UserProfile
 from .roles import (
-    PURCHASING_MANAGER,
     PURCHASING_STAFF,
     ROLE_ALIASES,
     ROLE_LABELS,
@@ -14,10 +13,10 @@ from .roles import (
 DEMO_ACCOUNTS = [
     {
         "username": "1",
-        "first_name": "أحمد",
-        "last_name": "محمود",
-        "email": "ahmed.m@logistics-hub.com",
-        "role": PURCHASING_MANAGER,
+        "first_name": "سوبر",
+        "last_name": "ادمن",
+        "email": "admin@logistics-hub.com",
+        "role": SUPER_ADMIN,
         "phone": "+971 50 123 4567",
         "password": "526400",
     },
@@ -67,20 +66,28 @@ def normalize_existing_roles():
 def ensure_demo_accounts(reset_password=False):
     created = []
     for item in DEMO_ACCOUNTS:
-        user, was_created = User.objects.get_or_create(
+        user = User.objects.filter(username=item["username"]).first()
+        if user:
+            if item["username"] == "1" and not user.is_superuser:
+                apply_role_flags(user, SUPER_ADMIN)
+                user.save(update_fields=["is_superuser", "is_staff"])
+                UserProfile.objects.update_or_create(
+                    user=user,
+                    defaults={"role": SUPER_ADMIN},
+                )
+            if reset_password:
+                user.set_password(item["password"])
+                user.save(update_fields=["password"])
+            continue
+
+        user = User(
             username=item["username"],
-            defaults={
-                "email": item["email"],
-                "first_name": item["first_name"],
-                "last_name": item["last_name"],
-            },
+            email=item["email"],
+            first_name=item["first_name"],
+            last_name=item["last_name"],
         )
-        user.email = item["email"]
-        user.first_name = item["first_name"]
-        user.last_name = item["last_name"]
         apply_role_flags(user, item["role"])
-        if was_created or reset_password:
-            user.set_password(item["password"])
+        user.set_password(item["password"])
         user.save()
         UserProfile.objects.update_or_create(
             user=user,
@@ -92,6 +99,5 @@ def ensure_demo_accounts(reset_password=False):
                 "language": "ar",
             },
         )
-        if was_created:
-            created.append(item["username"])
+        created.append(item["username"])
     return created
