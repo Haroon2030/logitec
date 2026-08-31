@@ -8,8 +8,8 @@
 <nav class="crumbs">لوحة المعلومات <span>›</span> جدولة الاستلام</nav>
 <div class="schedule-layout {% if not perms.schedule_assign %}is-readonly{% endif %}">
     <aside class="unscheduled card">
-        <h2>أوامر بانتظار الجدولة</h2>
-        <p class="muted">{% if perms.schedule_assign %}اسحب أمر التوريد إلى خانة المستودع والساعة{% else %}عرض الجدول فقط{% endif %}</p>
+        <h2>أوامر بدون مستودع</h2>
+        <p class="muted">{% if perms.schedule_assign %}اسحب الأمر إلى عمود المستودع لتعيين الاستلام{% else %}الأوامر غير المرتبطة بمستودع{% endif %}</p>
         <input class="field-input" id="ship-filter" type="search" placeholder="تصفية برقم الأمر أو المورد...">
         <div class="ship-list" id="unscheduled-list">
             {% for ship in unscheduled %}
@@ -23,7 +23,7 @@
                 </small>
             </article>
             {% empty %}
-            <p class="muted">لا توجد أوامر بانتظار الجدولة</p>
+            <p class="muted">كل الأوامر مرتبطة بمستودع وتظهر في الجدول</p>
             {% endfor %}
         </div>
     </aside>
@@ -79,13 +79,15 @@
             {% for row in rows %}
             <div class="sched-hour">{{ row.label }}</div>
             {% for cell in row.cells %}
-            <div class="sched-cell drop-zone" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}" data-date="{{ row.date }}">
+            <div class="sched-cell drop-zone{% if row.untimed %} is-untimed{% endif %}" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}" data-date="{{ row.date }}">
                 {% for item in cell.items %}
-                <a class="slot slot-{{ item.schedule_slot }}" href="{% url 'request_detail' item.pk %}">
-                    <strong>{{ item.number }}</strong>
-                    <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %}{% if item.file_count == 1 %} · ملف واحد{% elif item.file_count > 1 %} · {{ item.file_count }} ملفات{% endif %}</span>
-                    <em>{{ item.get_status_display }}</em>
-                </a>
+                <article class="slot slot-{{ item.schedule_slot }}" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ item.pk }}">
+                    <a href="{% url 'request_detail' item.pk %}">
+                        <strong>{{ item.number }}</strong>
+                        <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %}{% if item.file_count == 1 %} · ملف واحد{% elif item.file_count > 1 %} · {{ item.file_count }} ملفات{% endif %}</span>
+                        <em>{{ item.get_status_display }}{% if row.untimed %} · اسحب لتحديد الساعة{% endif %}</em>
+                    </a>
+                </article>
                 {% endfor %}
             </div>
             {% endfor %}

@@ -500,6 +500,26 @@ def parse_schedule_date(value):
         return timezone.localdate()
 
 
+def receipt_board_date(obj, today):
+    if obj.scheduled_date:
+        return obj.scheduled_date
+    if obj.eta:
+        board = obj.eta
+    elif obj.created_at:
+        board = timezone.localtime(obj.created_at).date()
+    else:
+        board = today
+    if board < today:
+        return today
+    return board
+
+
+def receipt_board_hour(obj):
+    if obj.scheduled_hour:
+        return int(obj.scheduled_hour)
+    return None
+
+
 def open_supply_qs():
     return (
         SupplyRequest.objects.select_related("supplier", "warehouse")
@@ -515,24 +535,52 @@ def schedule(request):
     view = request.GET.get("view") or "day"
     if view not in {"day", "week", "month"}:
         view = "day"
+    today = timezone.localdate()
     target_date = parse_schedule_date(request.GET.get("date"))
     warehouses = list(Warehouse.objects.all())
     hours = list(range(8, 18))
-    qs = open_supply_qs()
-    unscheduled = qs.filter(scheduled_hour__isnull=True).order_by("-created_at")
+    qs = list(open_supply_qs())
+    unscheduled = [item for item in qs if not item.warehouse_id]
+
+    placed = []
+    for item in qs:
+        if not item.warehouse_id:
+            continue
+        item.board_date = receipt_board_date(item, today)
+        item.board_hour = receipt_board_hour(item)
+        placed.append(item)
 
     for warehouse in warehouses:
-        booked = qs.filter(warehouse=warehouse, scheduled_date=target_date, scheduled_hour__isnull=False).count()
+        booked = sum(1 for item in placed if item.warehouse_id == warehouse.id and item.board_date == target_date)
         warehouse.live_occupancy = min(100, int(booked / max(len(hours), 1) * 100))
 
     rows = []
     month_weeks = []
     if view == "day":
         scheduled = {}
-        for item in qs.filter(scheduled_date=target_date, scheduled_hour__isnull=False):
-            if not item.warehouse_id:
+        untimed = {}
+        for item in placed:
+            if item.board_date != target_date:
                 continue
-            scheduled.setdefault(f"{item.warehouse_id}-{item.scheduled_hour}", []).append(item)
+            if item.board_hour is None:
+                untimed.setdefault(item.warehouse_id, []).append(item)
+            else:
+                scheduled.setdefault(f"{item.warehouse_id}-{item.board_hour}", []).append(item)
+        rows.append(
+            {
+                "label": "غير محددة",
+                "hour": "",
+                "date": target_date.isoformat(),
+                "untimed": True,
+                "cells": [
+                    {
+                        "warehouse": warehouse,
+                        "items": untimed.get(warehouse.id, []),
+                    }
+                    for warehouse in warehouses
+                ],
+            }
+        )
         for hour in hours:
             rows.append(
                 {
@@ -553,10 +601,10 @@ def schedule(request):
         week_start = target_date - timedelta(days=days_since_saturday)
         days = [week_start + timedelta(days=i) for i in range(7)]
         scheduled = {}
-        for item in qs.filter(scheduled_date__in=days, scheduled_hour__isnull=False):
-            if not item.warehouse_id:
+        for item in placed:
+            if item.board_date not in days:
                 continue
-            scheduled.setdefault(f"{item.warehouse_id}-{item.scheduled_date.isoformat()}", []).append(item)
+            scheduled.setdefault(f"{item.warehouse_id}-{item.board_date.isoformat()}", []).append(item)
         weekday_names = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
         for day, label in zip(days, weekday_names):
             rows.append(
@@ -576,12 +624,9 @@ def schedule(request):
     else:
         weeks = Calendar(firstweekday=SATURDAY).monthdayscalendar(target_date.year, target_date.month)
         month_items = {}
-        for item in qs.filter(
-            scheduled_date__year=target_date.year,
-            scheduled_date__month=target_date.month,
-            scheduled_hour__isnull=False,
-        ):
-            month_items.setdefault(item.scheduled_date.day, []).append(item)
+        for item in placed:
+            if item.board_date.year == target_date.year and item.board_date.month == target_date.month:
+                month_items.setdefault(item.board_date.day, []).append(item)
         for week in weeks:
             month_weeks.append(
                 [
@@ -589,7 +634,7 @@ def schedule(request):
                         "day": day or "",
                         "date": date(target_date.year, target_date.month, day).isoformat() if day else "",
                         "count": len(month_items.get(day, [])) if day else 0,
-                        "is_today": bool(day) and date(target_date.year, target_date.month, day) == timezone.localdate(),
+                        "is_today": bool(day) and date(target_date.year, target_date.month, day) == today,
                     }
                     for day in week
                 ]
@@ -629,7 +674,8 @@ def schedule(request):
 def assign_shipment(request):
     obj = get_object_or_404(SupplyRequest, pk=request.POST.get("shipment_id"))
     warehouse = get_object_or_404(Warehouse, pk=request.POST.get("warehouse_id"))
-    hour = int(request.POST.get("hour") or 8)
+    hour_raw = request.POST.get("hour")
+    hour = int(hour_raw) if str(hour_raw or "").strip() else None
     target_date = parse_schedule_date(request.POST.get("date"))
     obj.warehouse = warehouse
     obj.scheduled_hour = hour
@@ -637,7 +683,10 @@ def assign_shipment(request):
     obj.save(update_fields=["warehouse", "scheduled_hour", "scheduled_date"])
     if request.headers.get("HX-Request") or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"ok": True})
-    messages.success(request, f"تم جدولة {obj.number} في {warehouse.name} الساعة {hour:02d}:00")
+    if hour is None:
+        messages.success(request, f"تم تعيين {obj.number} لمستودع {warehouse.name} بدون ساعة محددة")
+    else:
+        messages.success(request, f"تم جدولة {obj.number} في {warehouse.name} الساعة {hour:02d}:00")
     return redirect(f"{reverse('schedule')}?view=day&date={target_date.isoformat()}")
 
 

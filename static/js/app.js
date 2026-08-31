@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const cards = document.querySelectorAll(".ship-card");
+    const cards = document.querySelectorAll(".ship-card, .slot[data-id]");
     const zones = document.querySelectorAll(".drop-zone");
     const form = document.getElementById("assign-form");
     cards.forEach((card) => {
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!form) return;
             document.getElementById("assign-shipment").value = event.dataTransfer.getData("text/plain");
             document.getElementById("assign-warehouse").value = zone.dataset.warehouse;
-            document.getElementById("assign-hour").value = zone.dataset.hour || "8";
+            document.getElementById("assign-hour").value = zone.dataset.hour ?? "8";
             const dateInput = document.getElementById("assign-date");
             if (dateInput) dateInput.value = zone.dataset.date || dateInput.value;
             form.submit();
