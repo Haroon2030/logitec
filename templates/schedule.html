@@ -32,6 +32,7 @@
         <header class="schedule-head">
             <div>
                 <h1>جدولة الاستلام المستودعي</h1>
+                <p class="muted">يمكن وضع أكثر من أمر توريد في نفس الساعة والمستودع</p>
                 <div class="seg">
                     <a class="{% if view == 'day' %}is-on{% endif %}" href="?view=day&date={{ target_date|date:'Y-m-d' }}">يوم</a>
                     <a class="{% if view == 'week' %}is-on{% endif %}" href="?view=week&date={{ target_date|date:'Y-m-d' }}">أسبوع</a>
@@ -80,14 +81,17 @@
             <div class="sched-hour">{{ row.label }}</div>
             {% for cell in row.cells %}
             <div class="sched-cell drop-zone{% if row.untimed %} is-untimed{% endif %}" data-warehouse="{{ cell.warehouse.pk }}" data-hour="{{ row.hour }}" data-date="{{ row.date }}">
+                {% if cell.items|length > 1 %}
+                <span class="slot-count">{{ cell.items|length }} أوامر</span>
+                {% endif %}
                 {% for item in cell.items %}
-                <article class="slot slot-{{ item.schedule_slot }}" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ item.pk }}">
-                    <a href="{% url 'request_detail' item.pk %}">
-                        <strong>{{ item.number }}</strong>
-                        <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %}{% if item.file_count == 1 %} · ملف واحد{% elif item.file_count > 1 %} · {{ item.file_count }} ملفات{% endif %}</span>
-                        <em>{{ item.get_status_display }}{% if row.untimed %} · اسحب لتحديد الساعة{% endif %}</em>
-                    </a>
+                <article class="slot slot-{{ item.schedule_slot }}" {% if perms.schedule_assign %}draggable="true"{% endif %} data-id="{{ item.pk }}" data-href="{% url 'request_detail' item.pk %}">
+                    <strong>{{ item.number }}</strong>
+                    <span>{% if item.supplier %}{{ item.supplier.name }}{% endif %}{% if item.file_count == 1 %} · ملف واحد{% elif item.file_count > 1 %} · {{ item.file_count }} ملفات{% endif %}</span>
+                    <em>{{ item.get_status_display }}{% if row.untimed %} · اسحب لتحديد الساعة{% endif %}</em>
                 </article>
+                {% empty %}
+                {% if perms.schedule_assign %}<span class="muted">أسقط أوامر هنا</span>{% endif %}
                 {% endfor %}
             </div>
             {% endfor %}

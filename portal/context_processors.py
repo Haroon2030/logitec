@@ -23,13 +23,17 @@ def portal_context(request):
 
     children = []
     if has_perm(user, "departments.view"):
-        children.append({"name": "departments", "label": "دليل الأقسام", "url": reverse("departments")})
+        children.append({"name": "departments", "label": "دليل الأقسام", "icon": "building", "url": reverse("departments")})
     if has_perm(user, "warehouses.view"):
-        children.append({"name": "warehouses", "label": "دليل المستودعات", "url": reverse("warehouses")})
+        children.append({"name": "warehouses", "label": "دليل المستودعات", "icon": "box", "url": reverse("warehouses")})
+    if has_perm(user, "keepers.view"):
+        children.append({"name": "keepers", "label": "دليل أمناء المستودع", "icon": "idcard", "url": reverse("keepers")})
     if has_perm(user, "suppliers.view"):
-        children.append({"name": "suppliers", "label": "دليل الموردين", "url": reverse("suppliers")})
+        children.append({"name": "suppliers", "label": "دليل الموردين", "icon": "truck", "url": reverse("suppliers")})
+    if has_perm(user, "reps.view"):
+        children.append({"name": "reps", "label": "دليل المندوبين", "icon": "phone", "url": reverse("representatives")})
     if has_perm(user, "whatsapp.manage"):
-        children.append({"name": "whatsapp", "label": "ربط واتساب", "url": reverse("whatsapp_setup")})
+        children.append({"name": "whatsapp", "label": "ربط واتساب", "icon": "whatsapp", "url": reverse("whatsapp_setup")})
     if children:
         nav.append(
             {
@@ -42,8 +46,6 @@ def portal_context(request):
         )
     if has_perm(user, "users.manage"):
         nav.append({"name": "users", "label": "إدارة المستخدمين", "icon": "users", "url": reverse("users")})
-    if has_perm(user, "whatsapp.manage"):
-        nav.append({"name": "whatsapp", "label": "ربط واتساب", "icon": "whatsapp", "url": reverse("whatsapp_setup")})
 
     return {
         "nav_items": nav,

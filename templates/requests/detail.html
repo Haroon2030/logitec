@@ -69,8 +69,18 @@
             {% if obj.warehouse %}
             <p class="strong">{{ obj.warehouse.name }}</p>
             <p class="muted">{{ obj.warehouse.city }} · الإشغال {{ obj.warehouse.capacity_percent }}%</p>
+            {% with keepers=obj.warehouse.keepers.all %}
+            {% if keepers %}
+            <p class="muted">الأمين: {% for keeper in keepers %}{{ keeper.name }}{% if not forloop.last %}، {% endif %}{% endfor %}</p>
+            {% endif %}
+            {% endwith %}
             {% else %}
             <p class="muted">لم يُحدد مستودع بعد</p>
+            {% endif %}
+            {% if obj.scheduled_date %}
+            <p class="strong" style="margin-top:12px">موعد الوصول من المندوب</p>
+            <p>{{ obj.scheduled_date|date:"j F Y" }}{% if obj.scheduled_hour %} · الساعة {{ obj.scheduled_hour|stringformat:"02d" }}:00{% endif %}</p>
+            {% if obj.rep_replied_at %}<p class="muted">أُكد {{ obj.rep_replied_at|date:"d M Y، h:i A" }}</p>{% endif %}
             {% endif %}
         </article>
     </div>

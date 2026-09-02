@@ -70,30 +70,63 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const cards = document.querySelectorAll(".ship-card, .slot[data-id]");
-    const zones = document.querySelectorAll(".drop-zone");
     const form = document.getElementById("assign-form");
-    cards.forEach((card) => {
+    let draggingId = "";
+    let justDragged = false;
+    const markOver = (zone) => {
+        document.querySelectorAll(".drop-zone.is-over").forEach((item) => {
+            if (item !== zone) item.classList.remove("is-over");
+        });
+        if (zone) zone.classList.add("is-over");
+    };
+    const clearDrag = () => {
+        draggingId = "";
+        markOver(null);
+    };
+    document.querySelectorAll(".ship-card, .slot[data-id]").forEach((card) => {
         card.addEventListener("dragstart", (event) => {
-            event.dataTransfer.setData("text/plain", card.dataset.id);
+            draggingId = String(card.dataset.id || "");
+            justDragged = true;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", draggingId);
+            try {
+                event.dataTransfer.setDragImage(card, 24, 24);
+            } catch (err) {
+                /* ignore */
+            }
+        });
+        card.addEventListener("dragend", clearDrag);
+        card.addEventListener("click", (event) => {
+            if (justDragged) {
+                event.preventDefault();
+                justDragged = false;
+                return;
+            }
+            if (card.dataset.href) window.location.href = card.dataset.href;
         });
     });
-    zones.forEach((zone) => {
-        zone.addEventListener("dragover", (event) => {
+    const scheduleRoot = document.querySelector(".sched-grid") || document.querySelector(".schedule-layout");
+    if (scheduleRoot) {
+        scheduleRoot.addEventListener("dragover", (event) => {
+            const zone = event.target.closest(".drop-zone");
+            if (!zone) return;
             event.preventDefault();
-            zone.classList.add("is-over");
+            event.dataTransfer.dropEffect = "move";
+            markOver(zone);
         });
-        zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
-        zone.addEventListener("drop", (event) => {
+        scheduleRoot.addEventListener("drop", (event) => {
+            const zone = event.target.closest(".drop-zone");
+            if (!zone) return;
             event.preventDefault();
-            zone.classList.remove("is-over");
-            if (!form) return;
-            document.getElementById("assign-shipment").value = event.dataTransfer.getData("text/plain");
+            const shipmentId = draggingId || event.dataTransfer.getData("text/plain");
+            markOver(null);
+            if (!form || !shipmentId) return;
+            document.getElementById("assign-shipment").value = shipmentId;
             document.getElementById("assign-warehouse").value = zone.dataset.warehouse;
             document.getElementById("assign-hour").value = zone.dataset.hour ?? "8";
             const dateInput = document.getElementById("assign-date");
             if (dateInput) dateInput.value = zone.dataset.date || dateInput.value;
             form.submit();
         });
-    });
+    }
 });

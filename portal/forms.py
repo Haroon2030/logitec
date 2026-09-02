@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
 
-from .models import Department, Supplier, SupplyRequest, UserProfile, Warehouse, WhatsAppConfig
+from .models import Department, Representative, Supplier, SupplyRequest, UserProfile, Warehouse, WarehouseKeeper, WhatsAppConfig
 from .roles import ROLE_ALIASES, ROLE_CHOICES, ROLE_LABELS, PURCHASING_STAFF, SUPER_ADMIN
 
 
@@ -79,6 +79,32 @@ class SupplyRequestForm(forms.ModelForm):
         return cleaned
 
 
+ARRIVAL_HOUR_CHOICES = [(hour, f"{hour:02d}:00") for hour in range(6, 23)]
+
+
+class ISODateInput(forms.DateInput):
+    input_type = "date"
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("format", "%Y-%m-%d")
+        super().__init__(*args, **kwargs)
+
+
+class RepArrivalForm(forms.Form):
+    arrival_date = forms.DateField(
+        label="تاريخ التوريد",
+        localize=False,
+        input_formats=["%Y-%m-%d"],
+        widget=ISODateInput(attrs={"class": "field-input"}),
+    )
+    arrival_hour = forms.TypedChoiceField(
+        label="ساعة الوصول",
+        coerce=int,
+        choices=ARRIVAL_HOUR_CHOICES,
+        widget=forms.Select(attrs={"class": "field-input"}),
+    )
+
+
 class ProfileForm(forms.ModelForm):
     first_name = forms.CharField(
         label="الاسم الأول",
@@ -87,12 +113,6 @@ class ProfileForm(forms.ModelForm):
     last_name = forms.CharField(
         label="اسم العائلة",
         widget=forms.TextInput(attrs={"class": "field-input"}),
-    )
-    email = forms.EmailField(
-        label="البريد الإلكتروني",
-        disabled=True,
-        required=False,
-        widget=forms.EmailInput(attrs={"class": "field-input", "readonly": True}),
     )
 
     class Meta:
@@ -118,7 +138,6 @@ class ProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["first_name"].initial = user.first_name
         self.fields["last_name"].initial = user.last_name
-        self.fields["email"].initial = user.email
 
     def save(self, user: User, commit=True):
         profile = super().save(commit=False)
@@ -141,34 +160,24 @@ class PortalUserForm(forms.Form):
         max_length=150,
         widget=forms.TextInput(attrs={"class": "field-input", "placeholder": "اسم الموظف"}),
     )
+    phone = forms.CharField(
+        label="رقم الجوال",
+        max_length=40,
+        widget=forms.TextInput(
+            attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+        ),
+    )
+    role = forms.ChoiceField(
+        label="الدور",
+        choices=ROLE_CHOICES,
+        initial=PURCHASING_STAFF,
+        widget=forms.Select(attrs={"class": "field-input"}),
+    )
     password = forms.CharField(
         label="كلمة المرور",
         min_length=4,
         required=False,
         widget=forms.PasswordInput(attrs={"class": "field-input", "placeholder": "••••••", "autocomplete": "new-password"}),
-    )
-    role = forms.ChoiceField(
-        label="الدور / الصلاحية",
-        choices=ROLE_CHOICES,
-        initial=PURCHASING_STAFF,
-        widget=forms.Select(attrs={"class": "field-input"}),
-    )
-    email = forms.EmailField(
-        label="البريد",
-        required=False,
-        widget=forms.EmailInput(attrs={"class": "field-input"}),
-    )
-    phone = forms.CharField(
-        label="الهاتف",
-        required=False,
-        max_length=40,
-        widget=forms.TextInput(attrs={"class": "field-input"}),
-    )
-    branch = forms.CharField(
-        label="الفرع",
-        required=False,
-        max_length=120,
-        widget=forms.TextInput(attrs={"class": "field-input"}),
     )
 
     def __init__(self, *args, instance=None, **kwargs):
@@ -182,7 +191,6 @@ class PortalUserForm(forms.Form):
                 profile = None
             self.fields["username"].initial = instance.username
             self.fields["full_name"].initial = instance.get_full_name() or instance.username
-            self.fields["email"].initial = instance.email
             if instance.is_superuser:
                 self.fields["role"].initial = SUPER_ADMIN
             elif profile:
@@ -192,7 +200,6 @@ class PortalUserForm(forms.Form):
                 )
             if profile:
                 self.fields["phone"].initial = profile.phone
-                self.fields["branch"].initial = profile.branch
         else:
             self.fields["password"].required = True
 
@@ -204,6 +211,14 @@ class PortalUserForm(forms.Form):
         if qs.exists():
             raise forms.ValidationError("رقم المستخدم موجود مسبقاً")
         return username
+
+    def clean_phone(self):
+        from .whatsapp import normalize_phone
+
+        phone = normalize_phone(self.cleaned_data.get("phone"))
+        if not phone:
+            raise forms.ValidationError("أدخل رقم جوال صحيح")
+        return phone
 
     def clean_password(self):
         password = self.cleaned_data.get("password") or ""
@@ -254,6 +269,69 @@ class SupplierForm(forms.ModelForm):
         }
 
 
+class RepresentativeForm(forms.ModelForm):
+    class Meta:
+        model = Representative
+        fields = ("name", "phone")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "field-input", "placeholder": "اسم المندوب"}),
+            "phone": forms.TextInput(
+                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+            ),
+        }
+
+    def clean_phone(self):
+        from .whatsapp import normalize_phone
+
+        phone = normalize_phone(self.cleaned_data.get("phone"))
+        if not phone:
+            raise forms.ValidationError("أدخل رقم جوال صحيح")
+        qs = Representative.objects.filter(phone=phone)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("رقم الجوال مسجّل لمندوب آخر")
+        return phone
+
+
+class WarehouseKeeperForm(forms.ModelForm):
+    class Meta:
+        model = WarehouseKeeper
+        fields = ("name", "phone", "warehouses")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "field-input", "placeholder": "اسم أمين المستودع"}),
+            "phone": forms.TextInput(
+                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
+            ),
+            "warehouses": forms.CheckboxSelectMultiple(attrs={"class": "check-list"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["warehouses"].queryset = Warehouse.objects.all().order_by("name")
+        self.fields["warehouses"].required = True
+        self.fields["warehouses"].label = "المستودعات المرتبطة"
+
+    def clean_phone(self):
+        from .whatsapp import normalize_phone
+
+        phone = normalize_phone(self.cleaned_data.get("phone"))
+        if not phone:
+            raise forms.ValidationError("أدخل رقم جوال صحيح")
+        qs = WarehouseKeeper.objects.filter(phone=phone)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("رقم الجوال مسجّل لأمين آخر")
+        return phone
+
+    def clean_warehouses(self):
+        warehouses = self.cleaned_data.get("warehouses")
+        if not warehouses:
+            raise forms.ValidationError("اختر مستودعاً واحداً على الأقل")
+        return warehouses
+
+
 class WhatsAppConfigForm(forms.ModelForm):
     class Meta:
         model = WhatsAppConfig
@@ -263,9 +341,6 @@ class WhatsAppConfigForm(forms.ModelForm):
             "api_key",
             "instance_name",
             "verify_ssl",
-            "phone_rep",
-            "phone_warehouse",
-            "phone_purchasing",
         )
         widgets = {
             "enabled": forms.CheckboxInput(attrs={"class": "check-input"}),
@@ -279,16 +354,13 @@ class WhatsAppConfigForm(forms.ModelForm):
             "api_key": forms.TextInput(attrs={"class": "field-input", "dir": "ltr"}),
             "instance_name": forms.TextInput(attrs={"class": "field-input", "dir": "ltr"}),
             "verify_ssl": forms.CheckboxInput(attrs={"class": "check-input"}),
-            "phone_rep": forms.TextInput(
-                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
-            ),
-            "phone_warehouse": forms.TextInput(
-                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
-            ),
-            "phone_purchasing": forms.TextInput(
-                attrs={"class": "field-input", "placeholder": "9665xxxxxxxx", "dir": "ltr"}
-            ),
         }
+
+    def __init__(self, *args, is_super_admin=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not is_super_admin:
+            for name in ("server_url", "api_key", "instance_name", "verify_ssl"):
+                self.fields.pop(name, None)
 
 
 class PortalPasswordForm(PasswordChangeForm):

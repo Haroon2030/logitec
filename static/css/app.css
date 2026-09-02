@@ -150,12 +150,24 @@ html.sidebar-collapsed .sidebar-toggle { right: var(--sidebar-collapsed); }
 .nav-group.is-open .side-sub { display: grid; }
 .side-sublink {
     color: var(--sidebar-text);
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-size: 13px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.side-sublink svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #64748b;
 }
 .side-sublink:hover,
 .side-sublink.is-active { background: var(--navy-2); color: var(--blue); }
+.side-sublink:hover svg,
+.side-sublink.is-active svg { color: var(--blue); }
 html.sidebar-collapsed .side-sub,
 html.sidebar-collapsed .nav-caret { display: none; }
 html.sidebar-collapsed .nav-parent { justify-content: center; }
@@ -284,6 +296,21 @@ html.sidebar-collapsed .nav-parent { justify-content: center; }
     place-items: center;
     font-weight: 700;
 }
+.logout-form { margin: 0; }
+.logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-weight: 700;
+    cursor: pointer;
+}
+.logout-btn:hover { background: #fee2e2; }
 
 .page { padding: 28px; }
 .page-head, .detail-head, .hero-head {
@@ -680,6 +707,18 @@ a.alert-item:hover { filter: brightness(0.98); }
 .field span { font-size: 13px; color: #475569; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.about-card p { color: #475569; line-height: 1.8; margin-bottom: 16px; }
+.about-dev {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: grid;
+    gap: 6px;
+}
+.about-dev strong { color: var(--blue); }
+.about-dev span { color: #0f172a; font-weight: 600; }
+.about-dev a { font-weight: 700; font-size: 18px; }
 
 .timeline {
     list-style: none;
@@ -781,11 +820,39 @@ a.alert-item:hover { filter: brightness(0.98); }
     border-radius: 12px;
     background: #f8fafc;
     padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 .sched-cell.is-over { background: #ecfdf5; border-color: #34d399; }
 .sched-cell.is-untimed { background: #fff7ed; border-color: #fdba74; }
-.slot { border-radius: 10px; padding: 8px; display: grid; gap: 3px; font-size: 13px; color: inherit; margin-bottom: 6px; cursor: grab; }
-.slot a { color: inherit; display: grid; gap: 3px; }
+.slot-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-radius: 999px;
+    padding: 2px 8px;
+    align-self: flex-start;
+    pointer-events: none;
+}
+.slot {
+    border-radius: 10px;
+    padding: 8px;
+    display: grid;
+    gap: 3px;
+    font-size: 13px;
+    color: inherit;
+    cursor: grab;
+    flex: 0 0 auto;
+    user-select: none;
+    -webkit-user-drag: element;
+}
+.slot strong,
+.slot span,
+.slot em {
+    pointer-events: none;
+}
 .slot-confirmed { background: #dbeafe; }
 .month-grid {
     display: grid;
@@ -825,6 +892,19 @@ a.alert-item:hover { filter: brightness(0.98); }
 .profile-card .meta-list { text-align: right; margin: 18px 0; }
 .notify-box { display: grid; gap: 12px; }
 .check { display: flex; align-items: center; gap: 8px; color: #334155; }
+.check-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: grid;
+    gap: 8px;
+}
+.check-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.check-list input { accent-color: var(--blue); }
 .text-link { color: #2563eb; font-weight: 600; }
 
 .login-body {
@@ -885,6 +965,32 @@ a.alert-item:hover { filter: brightness(0.98); }
     margin: 8px 0 16px;
 }
 .login-help, .login-hint { color: var(--muted); margin-top: 14px; font-size: 13px; }
+
+.reply-card {
+    width: min(520px, 94vw);
+    text-align: right;
+}
+.reply-card .login-brand { text-align: center; }
+.reply-summary {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    display: grid;
+    gap: 10px;
+}
+.reply-summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #64748b;
+    font-size: 13px;
+}
+.reply-summary strong { color: #0f172a; }
+.reply-card .field { display: grid; gap: 6px; margin-bottom: 14px; }
+.reply-card .field span { font-weight: 600; color: #334155; }
+.danger-text { color: #b91c1c; font-size: 12px; }
 
 .wa-page { display: grid; gap: 16px; max-width: 980px; }
 .wa-connect-card {
@@ -961,6 +1067,7 @@ a.alert-item:hover { filter: brightness(0.98); }
     gap: 8px;
     padding: 4px 0 8px;
 }
+#wa-show-server { margin: 4px 0 12px; }
 .wa-badge {
     display: inline-flex;
     align-items: center;

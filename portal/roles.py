@@ -39,6 +39,7 @@ ROLE_PERMS = {
         "requests.export",
         "requests.issue",
         "suppliers.view",
+        "reps.view",
         "settings",
     },
     WAREHOUSE_STAFF: {
@@ -48,6 +49,8 @@ ROLE_PERMS = {
         "schedule.view",
         "schedule.assign",
         "warehouses.view",
+        "keepers.view",
+        "keepers.manage",
         "settings",
     },
     PURCHASING_MANAGER: {
@@ -59,8 +62,12 @@ ROLE_PERMS = {
         "schedule.view",
         "suppliers.view",
         "suppliers.manage",
+        "reps.view",
+        "reps.manage",
         "warehouses.view",
         "warehouses.manage",
+        "keepers.view",
+        "keepers.manage",
         "departments.view",
         "departments.manage",
         "whatsapp.manage",
@@ -76,11 +83,11 @@ ROLE_GUIDE = [
     ),
     (
         WAREHOUSE_STAFF,
-        "عرض الطلبات وتعليمها كمستلمة، وجدولة التسليم في المستودع.",
+        "عرض الطلبات وتعليمها كمستلمة، وجدولة التسليم، وإدارة أمناء المستودعات.",
     ),
     (
         PURCHASING_MANAGER,
-        "إدارة طلبات التوريد والموردين والأقسام والمستودعات، دون إدارة المستخدمين.",
+        "إدارة طلبات التوريد والموردين والمندوبين والأقسام والمستودعات، دون إدارة المستخدمين.",
     ),
     (
         SUPER_ADMIN,
@@ -144,9 +151,14 @@ def perms_for(user):
         "warehouses_manage": has_perm(user, "warehouses.manage"),
         "suppliers_view": has_perm(user, "suppliers.view"),
         "suppliers_manage": has_perm(user, "suppliers.manage"),
+        "reps_view": has_perm(user, "reps.view"),
+        "reps_manage": has_perm(user, "reps.manage"),
+        "keepers_view": has_perm(user, "keepers.view"),
+        "keepers_manage": has_perm(user, "keepers.manage"),
         "users_manage": has_perm(user, "users.manage"),
         "whatsapp_manage": has_perm(user, "whatsapp.manage"),
         "settings": has_perm(user, "settings"),
+        "is_super_admin": normalize_role(user) == SUPER_ADMIN,
     }
 
 

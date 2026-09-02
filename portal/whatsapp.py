@@ -16,12 +16,63 @@ def normalize_phone(raw):
     return digits
 
 
-def recipient_list(config):
-    return [
-        ("المندوب", normalize_phone(config.phone_rep)),
-        ("مسؤول المستودع", normalize_phone(config.phone_warehouse)),
-        ("المشتريات", normalize_phone(config.phone_purchasing)),
-    ]
+def user_whatsapp_phones(role_codes):
+    from .models import UserProfile
+
+    rows = []
+    for profile in (
+        UserProfile.objects.select_related("user")
+        .filter(role__in=role_codes)
+        .exclude(phone="")
+    ):
+        number = normalize_phone(profile.phone)
+        if not number:
+            continue
+        name = profile.user.get_full_name() or profile.user.username
+        rows.append((name, number))
+    return rows
+
+
+def recipient_list(config, warehouse=None):
+    from .models import Representative, WarehouseKeeper
+    from .roles import PURCHASING_MANAGER, PURCHASING_STAFF, WAREHOUSE_STAFF
+
+    rows = []
+    seen = set()
+
+    def add(label, number):
+        number = normalize_phone(number)
+        if not number or number in seen:
+            return False
+        seen.add(number)
+        rows.append((label, number))
+        return True
+
+    for rep in Representative.objects.exclude(phone=""):
+        add(f"المندوب ({rep.name})", rep.phone)
+    add("المندوب", config.phone_rep)
+
+    keepers = WarehouseKeeper.objects.exclude(phone="").prefetch_related("warehouses")
+    if warehouse is not None:
+        keepers = keepers.filter(warehouses=warehouse)
+    keeper_added = False
+    for keeper in keepers:
+        if add(f"أمين المستودع ({keeper.name})", keeper.phone):
+            keeper_added = True
+    warehouse_users = False
+    for name, number in user_whatsapp_phones([WAREHOUSE_STAFF]):
+        if add(f"موظف مستودع ({name})", number):
+            warehouse_users = True
+    if not keeper_added and not warehouse_users:
+        add("مسؤول المستودع", config.phone_warehouse)
+
+    purchasing_added = False
+    for name, number in user_whatsapp_phones([PURCHASING_STAFF, PURCHASING_MANAGER]):
+        if add(f"المشتريات ({name})", number):
+            purchasing_added = True
+    if not purchasing_added:
+        add("المشتريات", config.phone_purchasing)
+    return rows
 
 
 def _ssl_context(verify_ssl):
@@ -252,12 +303,27 @@ def send_supply_whatsapp(config, number, text, attachments):
     return last or send_text(config, number, text)
 
 
-def build_supply_message(obj):
-    when = timezone.localtime(obj.placed_at or obj.created_at)
+def public_reply_url(obj, request=None):
+    from django.conf import settings as dj_settings
+    from django.urls import reverse
+
+    path = reverse("supply_rep_reply", args=[obj.reply_token])
+    if request is not None:
+        return request.build_absolute_uri(path)
+    base = (getattr(dj_settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+    return f"{base}{path}" if base else path
+
+
+def warehouse_label(obj):
     warehouse = obj.warehouse.name if obj.warehouse else "—"
     city = obj.warehouse.city if obj.warehouse and obj.warehouse.city else ""
     if city:
-        warehouse = f"{warehouse} — {city}"
+        return f"{warehouse} — {city}"
+    return warehouse
+
+
+def build_supply_message(obj):
+    when = timezone.localtime(obj.placed_at or obj.created_at)
     creator = ""
     if obj.created_by:
         creator = obj.created_by.get_full_name() or obj.created_by.username
@@ -265,7 +331,7 @@ def build_supply_message(obj):
         "أمر توريد جديد\n"
         f"رقم الطلب: {obj.number}\n"
         f"المورد: {obj.supplier.name if obj.supplier else '—'}\n"
-        f"المستودع: {warehouse}\n"
+        f"المستودع: {warehouse_label(obj)}\n"
         f"الأولوية: {obj.get_priority_display()}\n"
         f"بواسطة المشتريات: {creator or '—'}\n"
         f"التاريخ: {when.strftime('%Y-%m-%d %H:%M')}\n"
@@ -273,20 +339,49 @@ def build_supply_message(obj):
     )
 
 
-def notify_supply_saved(obj):
+def build_rep_invite_message(obj, reply_url):
+    return (
+        "أمر توريد جديد\n"
+        f"رقم الطلب: {obj.number}\n"
+        f"المورد: {obj.supplier.name if obj.supplier else '—'}\n"
+        f"المستودع: {warehouse_label(obj)}\n"
+        f"الأولوية: {obj.get_priority_display()}\n"
+        "حدد تاريخ التوريد وساعة الوصول من الرابط:\n"
+        f"{reply_url}"
+    )
+
+
+def build_warehouse_arrival_message(obj):
+    hour = f"{int(obj.scheduled_hour):02d}:00" if obj.scheduled_hour is not None else "—"
+    day = obj.scheduled_date.strftime("%Y-%m-%d") if obj.scheduled_date else "—"
+    return (
+        "تأكيد وصول من المندوب\n"
+        f"رقم الطلب: {obj.number}\n"
+        f"المورد: {obj.supplier.name if obj.supplier else '—'}\n"
+        f"المستودع: {warehouse_label(obj)}\n"
+        f"تاريخ التوريد: {day}\n"
+        f"ساعة الوصول: {hour}\n"
+        "يرجى الاستعداد للاستلام."
+    )
+
+
+def notify_supply_saved(obj, request=None):
     from .models import WhatsAppConfig
 
     config = WhatsAppConfig.load()
     if not config.enabled:
         return False, "إشعارات واتساب غير مفعّلة"
-    text = build_supply_message(obj)
     attachments = request_attachments(obj)
+    reply_url = public_reply_url(obj, request)
+    staff_text = build_supply_message(obj)
+    rep_text = build_rep_invite_message(obj, reply_url)
     sent = []
     errors = []
-    for label, number in recipient_list(config):
+    for label, number in recipient_list(config, warehouse=obj.warehouse):
         if not number:
             errors.append(f"{label}: لا يوجد رقم")
             continue
+        text = rep_text if str(label).startswith("المندوب") else staff_text
         try:
             send_supply_whatsapp(config, number, text, attachments)
             sent.append(label)
@@ -298,3 +393,40 @@ def notify_supply_saved(obj):
     if sent:
         return True, "أُرسل إلى " + "، ".join(sent) + " — " + "؛ ".join(errors)
     return False, "؛ ".join(errors) or "لا توجد أرقام للمستلمين"
+
+
+def notify_warehouse_arrival(obj):
+    from .models import WhatsAppConfig, WarehouseKeeper
+    from .roles import WAREHOUSE_STAFF
+
+    config = WhatsAppConfig.load()
+    if not config.enabled:
+        return False, "إشعارات واتساب غير مفعّلة"
+    text = build_warehouse_arrival_message(obj)
+    numbers = []
+    if obj.warehouse_id:
+        for keeper in WarehouseKeeper.objects.filter(warehouses=obj.warehouse).exclude(phone=""):
+            number = normalize_phone(keeper.phone)
+            if number and number not in numbers:
+                numbers.append(number)
+    for _, number in user_whatsapp_phones([WAREHOUSE_STAFF]):
+        if number not in numbers:
+            numbers.append(number)
+    fallback = normalize_phone(config.phone_warehouse)
+    if fallback and fallback not in numbers:
+        numbers.append(fallback)
+    if not numbers:
+        return False, "لا يوجد رقم لأمين المستودع"
+    errors = []
+    sent = 0
+    for number in numbers:
+        try:
+            send_text(config, number, text)
+            sent += 1
+        except Exception as exc:
+            errors.append(str(exc))
+    if sent and not errors:
+        return True, "أُرسل تأكيد الوصول إلى أمين المستودع"
+    if sent:
+        return True, "أُرسل التأكيد مع تنبيه: " + "؛ ".join(errors)
+    return False, "؛ ".join(errors) or "تعذر إرسال تأكيد الوصول"

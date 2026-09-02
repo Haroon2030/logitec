@@ -8,11 +8,13 @@ from .models import (
     Product,
     RequestFile,
     RequestItem,
+    Representative,
     Shipment,
     Supplier,
     SupplyRequest,
     UserProfile,
     Warehouse,
+    WarehouseKeeper,
 )
 
 
@@ -28,7 +30,7 @@ class RequestFileInline(admin.TabularInline):
 
 @admin.register(SupplyRequest)
 class SupplyRequestAdmin(admin.ModelAdmin):
-    list_display = ("number", "supplier", "warehouse", "priority", "status", "created_at")
+    list_display = ("number", "supplier", "warehouse", "priority", "status", "scheduled_date", "scheduled_hour", "created_at")
     list_filter = ("status", "priority", "supplier", "warehouse")
     search_fields = ("number",)
     inlines = [RequestFileInline, RequestItemInline]
@@ -46,9 +48,22 @@ class SupplierAdmin(admin.ModelAdmin):
     search_fields = ("name", "code")
 
 
+@admin.register(Representative)
+class RepresentativeAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone")
+    search_fields = ("name", "phone")
+
+
 @admin.register(Warehouse)
 class WarehouseAdmin(admin.ModelAdmin):
     list_display = ("name", "city", "capacity_percent")
+
+
+@admin.register(WarehouseKeeper)
+class WarehouseKeeperAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone")
+    search_fields = ("name", "phone")
+    filter_horizontal = ("warehouses",)
 
 
 @admin.register(Product)

@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -21,6 +22,26 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Representative(models.Model):
+    name = models.CharField("اسم المندوب", max_length=120)
+    phone = models.CharField("رقم الجوال", max_length=40)
+
+    class Meta:
+        verbose_name = "مندوب"
+        verbose_name_plural = "المندوبون"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        digits = "".join(ch for ch in (self.phone or "") if ch.isdigit())
+        if digits.startswith("00"):
+            digits = digits[2:]
+        self.phone = digits
+        super().save(*args, **kwargs)
 
 
 class Department(models.Model):
@@ -49,6 +70,36 @@ class Warehouse(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.city})"
+
+
+class WarehouseKeeper(models.Model):
+    name = models.CharField("اسم الأمين", max_length=120)
+    phone = models.CharField("رقم الجوال", max_length=40)
+    warehouses = models.ManyToManyField(
+        Warehouse,
+        related_name="keepers",
+        verbose_name="المستودعات",
+    )
+
+    class Meta:
+        verbose_name = "أمين مستودع"
+        verbose_name_plural = "أمناء المستودعات"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        digits = "".join(ch for ch in (self.phone or "") if ch.isdigit())
+        if digits.startswith("00"):
+            digits = digits[2:]
+        self.phone = digits
+        super().save(*args, **kwargs)
+
+    @property
+    def warehouses_label(self):
+        names = [item.name for item in self.warehouses.all()]
+        return "، ".join(names) if names else "—"
 
 
 class Product(models.Model):
@@ -119,6 +170,8 @@ class SupplyRequest(models.Model):
     eta = models.DateField("الوصول المتوقع", null=True, blank=True)
     scheduled_date = models.DateField("تاريخ الاستلام المجدول", null=True, blank=True)
     scheduled_hour = models.PositiveSmallIntegerField("ساعة الاستلام", null=True, blank=True)
+    reply_token = models.UUIDField("رمز رد المندوب", default=uuid.uuid4, unique=True, editable=False)
+    rep_replied_at = models.DateTimeField("رد المندوب في", null=True, blank=True)
     attachment = models.FileField("الملف", upload_to="requests/", blank=True)
     created_at = models.DateTimeField("أُنشئ في", auto_now_add=True)
 
@@ -342,6 +395,13 @@ class UserProfile(models.Model):
     class Meta:
         verbose_name = "ملف شخصي"
         verbose_name_plural = "الملفات الشخصية"
+
+    def save(self, *args, **kwargs):
+        digits = "".join(ch for ch in (self.phone or "") if ch.isdigit())
+        if digits.startswith("00"):
+            digits = digits[2:]
+        self.phone = digits
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username

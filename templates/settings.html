@@ -30,11 +30,6 @@
                 </label>
             </div>
             <label class="field">
-                <span>البريد الإلكتروني</span>
-                {{ profile_form.email }}
-                <small class="muted">لتغيير البريد تواصل مع مسؤول النظام.</small>
-            </label>
-            <label class="field">
                 <span>الدور / الصلاحية</span>
                 <input class="field-input" type="text" value="{{ perms.role_label }}" readonly>
                 <small class="muted">يحددها سوبر ادمن من شاشة المستخدمين.</small>
@@ -77,7 +72,6 @@
             <label class="check"><input type="checkbox" checked> تنبيه تأخر أمر التوريد</label>
             <label class="check"><input type="checkbox" checked> إشعار إرسال الأمر للمورد والمستودع</label>
             <label class="check"><input type="checkbox" checked> إشعار تعليم الأمر كمستلم</label>
-            <label class="check"><input type="checkbox"> ملخص يومي بالبريد</label>
         </div>
         {% endif %}
     </section>
@@ -87,10 +81,6 @@
         <h2>{{ user.get_full_name }}</h2>
         <span class="chip">{{ profile.role }}</span>
         <ul class="meta-list">
-            <li>
-                {% include "partials/icon.html" with name="mail" %}
-                {{ user.email }}
-            </li>
             <li>
                 {% include "partials/icon.html" with name="phone" %}
                 {{ profile.phone }}

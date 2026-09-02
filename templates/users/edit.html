@@ -22,24 +22,17 @@
             {% if form.full_name.errors %}<small class="danger-text">{{ form.full_name.errors|striptags }}</small>{% endif %}
         </label>
         <label class="field">
-            <span>الدور / الصلاحية</span>
+            <span>رقم الجوال</span>
+            {{ form.phone }}
+            <small class="muted">يُرسل واتساب على هذا الرقم: موظف شراء/مدير مشتريات يستلم إشعار الأمر، وموظف مستودع يستلم إشعار الوصول</small>
+            {% if form.phone.errors %}<small class="danger-text">{{ form.phone.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>الدور</span>
             {{ form.role }}
         </label>
         <label class="field">
-            <span>البريد</span>
-            {{ form.email }}
-            {% if form.email.errors %}<small class="danger-text">{{ form.email.errors|striptags }}</small>{% endif %}
-        </label>
-        <label class="field">
-            <span>الهاتف</span>
-            {{ form.phone }}
-        </label>
-        <label class="field">
-            <span>الفرع</span>
-            {{ form.branch }}
-        </label>
-        <label class="field">
-            <span>كلمة المرور الجديدة</span>
+            <span>كلمة المرور</span>
             {{ form.password }}
             <small class="muted">اترك الحقل فارغاً إذا لا تريد تغيير كلمة المرور</small>
             {% if form.password.errors %}<small class="danger-text">{{ form.password.errors|striptags }}</small>{% endif %}

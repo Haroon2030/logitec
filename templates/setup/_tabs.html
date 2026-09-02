@@ -6,8 +6,14 @@
     {% if perms.warehouses_view %}
     <a class="{% if setup_tab == 'warehouses' %}is-on{% endif %}" href="{% url 'warehouses' %}">دليل المستودعات</a>
     {% endif %}
+    {% if perms.keepers_view %}
+    <a class="{% if setup_tab == 'keepers' %}is-on{% endif %}" href="{% url 'keepers' %}">دليل أمناء المستودع</a>
+    {% endif %}
     {% if perms.suppliers_view %}
     <a class="{% if setup_tab == 'suppliers' %}is-on{% endif %}" href="{% url 'suppliers' %}">دليل الموردين</a>
+    {% endif %}
+    {% if perms.reps_view %}
+    <a class="{% if setup_tab == 'reps' %}is-on{% endif %}" href="{% url 'representatives' %}">دليل المندوبين</a>
     {% endif %}
     {% if perms.whatsapp_manage %}
     <a class="{% if setup_tab == 'whatsapp' %}is-on{% endif %}" href="{% url 'whatsapp_setup' %}">ربط واتساب</a>

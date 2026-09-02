@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load ui %}
+
+{% block title %}دليل أمناء المستودع{% endblock %}
+{% block search_action %}{% url 'keepers' %}{% endblock %}
+{% block search_placeholder %}بحث بالاسم أو الجوال أو المستودع...{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="دليل أمناء المستودع" %}
+<div class="page-head">
+    <div>
+        <h1>دليل أمناء المستودع</h1>
+        <p class="muted">اسم الأمين ورقم الجوال، مع ربطه بالمستودعات التي يستلم عليها</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-ghost" href="{% url 'export_keepers' %}{% if export_query %}?{{ export_query }}{% endif %}">
+            {% include "partials/icon.html" with name="excel" %}
+            تصدير Excel
+        </a>
+        {% if perms.keepers_manage %}
+        <button class="btn btn-navy" type="button" data-open="create-modal">
+            {% include "partials/icon.html" with name="plus" %}
+            إضافة أمين
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<section class="card excel-card">
+    <div class="table-wrap excel-wrap">
+        <table class="data-table excel-table">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>اسم الأمين</th>
+                    <th>رقم الجوال</th>
+                    <th>المستودعات</th>
+                    <th>الإجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in keepers %}
+                <tr>
+                    <td class="row-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                    <td>{{ row.name }}</td>
+                    <td class="mono" dir="ltr">{{ row.phone }}</td>
+                    <td>{{ row.warehouses_label }}</td>
+                    <td class="row-actions">
+                        {% if perms.keepers_manage %}
+                        {% action "edit" "keeper_edit" row.pk %}
+                        {% action "delete" "keeper_delete" row.pk row.name %}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="muted">لا يوجد أمناء مستودع</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <footer class="table-foot">
+        <span>عرض {{ page_obj.start_index }} إلى {{ page_obj.end_index }} من {{ page_obj.paginator.count }} أمين</span>
+        <a class="text-link" href="{% url 'export_keepers' %}{% if export_query %}?{{ export_query }}{% endif %}">تحميل ملف Excel</a>
+    </footer>
+    {% include "partials/pagination.html" %}
+</section>
+
+{% if perms.keepers_manage %}
+<div class="modal {% if form.errors %}is-open{% endif %}" id="create-modal" {% if not form.errors %}hidden{% endif %}>
+    <div class="modal-card">
+        <header>
+            <h2>إضافة أمين مستودع</h2>
+            <button type="button" class="icon-btn" data-close>×</button>
+        </header>
+        <form method="post">
+            {% csrf_token %}
+            <label class="field">
+                <span>اسم الأمين</span>
+                {{ form.name }}
+                {% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>رقم الجوال</span>
+                {{ form.phone }}
+                {% if form.phone.errors %}<small class="danger-text">{{ form.phone.errors|striptags }}</small>{% endif %}
+            </label>
+            <fieldset class="field">
+                <span>المستودعات المرتبطة</span>
+                {{ form.warehouses }}
+                {% if form.warehouses.errors %}<small class="danger-text">{{ form.warehouses.errors|striptags }}</small>{% endif %}
+            </fieldset>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" data-close>إلغاء</button>
+                <button class="btn btn-navy" type="submit">حفظ الأمين</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -24,27 +24,34 @@ from .forms import (
     PortalPasswordForm,
     PortalUserForm,
     ProfileForm,
+    RepArrivalForm,
+    RepresentativeForm,
     StyledAuthForm,
     SupplierForm,
     SupplyRequestForm,
     WarehouseForm,
+    WarehouseKeeperForm,
     WhatsAppConfigForm,
 )
 from .models import (
     Alert,
     Department,
     RequestFile,
+    Representative,
     Supplier,
     SupplyRequest,
     UserProfile,
     Warehouse,
+    WarehouseKeeper,
     WhatsAppConfig,
 )
 from .roles import (
     ROLE_GUIDE,
     ROLE_LABELS,
+    SUPER_ADMIN,
     apply_role_flags,
     deny_unless,
+    normalize_role,
     require_perm,
     role_label,
 )
@@ -53,6 +60,7 @@ from .whatsapp import (
     fetch_connect,
     logout_instance,
     notify_supply_saved,
+    notify_warehouse_arrival,
     recipient_list,
     send_text,
 )
@@ -66,6 +74,65 @@ class PortalLoginView(LoginView):
 
 class PortalLogoutView(LogoutView):
     next_page = "login"
+
+
+def supply_rep_reply(request, token):
+    obj = get_object_or_404(
+        SupplyRequest.objects.select_related("supplier", "warehouse"),
+        reply_token=token,
+    )
+    locked = obj.status == SupplyRequest.Status.RECEIVED
+    initial = {
+        "arrival_date": obj.scheduled_date or obj.eta or timezone.localdate(),
+        "arrival_hour": obj.scheduled_hour or 8,
+    }
+    form = RepArrivalForm(request.POST or None, initial=initial)
+    saved = False
+    if request.method == "POST" and not locked:
+        if form.is_valid():
+            obj.scheduled_date = form.cleaned_data["arrival_date"]
+            obj.scheduled_hour = form.cleaned_data["arrival_hour"]
+            obj.eta = form.cleaned_data["arrival_date"]
+            obj.rep_replied_at = timezone.now()
+            if obj.status in {
+                SupplyRequest.Status.PENDING,
+                SupplyRequest.Status.APPROVED,
+                SupplyRequest.Status.SENT,
+                SupplyRequest.Status.PREPARING,
+                SupplyRequest.Status.DELAYED,
+            }:
+                obj.status = SupplyRequest.Status.IN_TRANSIT
+            obj.save(
+                update_fields=[
+                    "scheduled_date",
+                    "scheduled_hour",
+                    "eta",
+                    "rep_replied_at",
+                    "status",
+                ]
+            )
+            wa_ok, wa_detail = notify_warehouse_arrival(obj)
+            if wa_ok:
+                messages.success(request, "تم حفظ موعد الوصول وإرسال الرسالة إلى مسؤول المستودع")
+            else:
+                messages.warning(request, f"حُفظ الموعد، وتعذر إرسال واتساب للمستودع: {wa_detail}")
+            saved = True
+            form = RepArrivalForm(
+                initial={
+                    "arrival_date": obj.scheduled_date,
+                    "arrival_hour": obj.scheduled_hour,
+                }
+            )
+    return render(
+        request,
+        "public/supply_reply.html",
+        {
+            "obj": obj,
+            "form": form,
+            "locked": locked,
+            "saved": saved,
+        },
+    )
 
 
 def filtered_requests(request):
@@ -326,7 +393,7 @@ def request_list(request):
                 request,
                 f"أُرسل طلب التوريد {obj.number} إلى المورد والمستودع",
             )
-            wa_ok, wa_detail = notify_supply_saved(obj)
+            wa_ok, wa_detail = notify_supply_saved(obj, request=request)
             if wa_ok:
                 messages.success(request, wa_detail)
             else:
@@ -459,7 +526,7 @@ def request_detail(request, pk):
     request.active_nav = "requests"
     obj = get_object_or_404(
         SupplyRequest.objects.select_related("supplier", "warehouse", "created_by").prefetch_related(
-            "files", "items__product"
+            "files", "items__product", "warehouse__keepers"
         ),
         pk=pk,
     )
@@ -735,7 +802,8 @@ def whatsapp_setup(request):
     request.active_nav = "whatsapp"
     request.setup_tab = "whatsapp"
     config = WhatsAppConfig.load()
-    form = WhatsAppConfigForm(instance=config)
+    is_super_admin = normalize_role(request.user) == SUPER_ADMIN
+    form = WhatsAppConfigForm(instance=config, is_super_admin=is_super_admin)
     status = ""
     status_error = ""
     qr_src = ""
@@ -749,7 +817,7 @@ def whatsapp_setup(request):
             except Exception as exc:
                 messages.warning(request, f"تعذر قطع الاتصال: {exc}")
             return redirect("whatsapp_setup")
-        form = WhatsAppConfigForm(request.POST, instance=config)
+        form = WhatsAppConfigForm(request.POST, instance=config, is_super_admin=is_super_admin)
         if form.is_valid():
             config = form.save()
             if action == "test":
@@ -975,6 +1043,90 @@ def warehouse_delete(request, pk):
 
 
 @login_required
+@require_perm("keepers.view")
+def keeper_list(request):
+    request.active_nav = "setup"
+    request.setup_tab = "keepers"
+    q = request.GET.get("q") or ""
+    qs = WarehouseKeeper.objects.prefetch_related("warehouses").all()
+    if q:
+        qs = qs.filter(
+            Q(name__icontains=q) | Q(phone__icontains=q) | Q(warehouses__name__icontains=q)
+        ).distinct()
+    form = WarehouseKeeperForm()
+    if request.method == "POST":
+        blocked = deny_unless(request, "keepers.manage")
+        if blocked:
+            return blocked
+        form = WarehouseKeeperForm(request.POST)
+        if form.is_valid():
+            keeper = form.save()
+            messages.success(request, f"تمت إضافة أمين المستودع {keeper.name}")
+            return redirect("keepers")
+    page_obj, export_query = paginate_qs(request, qs)
+    return render(
+        request,
+        "keepers/list.html",
+        {
+            "keepers": page_obj,
+            "page_obj": page_obj,
+            "form": form,
+            "query": q,
+            "export_query": export_query,
+        },
+    )
+
+
+@login_required
+@require_perm("keepers.view")
+def export_keepers(request):
+    q = request.GET.get("q") or ""
+    qs = WarehouseKeeper.objects.prefetch_related("warehouses").order_by("name")
+    if q:
+        qs = qs.filter(
+            Q(name__icontains=q) | Q(phone__icontains=q) | Q(warehouses__name__icontains=q)
+        ).distinct()
+    rows = [
+        [i, item.name, item.phone, item.warehouses_label]
+        for i, item in enumerate(qs, 1)
+    ]
+    return simple_excel(
+        "أمناء المستودعات",
+        ["م", "اسم الأمين", "رقم الجوال", "المستودعات"],
+        rows,
+        [6, 24, 20, 36],
+        f"warehouse-keepers-{timezone.localdate().isoformat()}.xlsx",
+    )
+
+
+@login_required
+@require_perm("keepers.manage")
+def keeper_edit(request, pk):
+    request.active_nav = "setup"
+    request.setup_tab = "keepers"
+    keeper = get_object_or_404(WarehouseKeeper, pk=pk)
+    form = WarehouseKeeperForm(instance=keeper)
+    if request.method == "POST":
+        form = WarehouseKeeperForm(request.POST, instance=keeper)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"تم تعديل أمين المستودع {keeper.name}")
+            return redirect("keepers")
+    return render(request, "keepers/edit.html", {"form": form, "keeper": keeper})
+
+
+@login_required
+@require_POST
+@require_perm("keepers.manage")
+def keeper_delete(request, pk):
+    keeper = get_object_or_404(WarehouseKeeper, pk=pk)
+    name = keeper.name
+    keeper.delete()
+    messages.success(request, f"تم حذف أمين المستودع {name}")
+    return redirect("keepers")
+
+
+@login_required
 @require_perm("suppliers.view")
 def supplier_list(request):
     request.active_nav = "setup"
@@ -1100,6 +1252,127 @@ def supplier_delete(request, pk):
 
 
 @login_required
+@require_perm("reps.view")
+def representative_list(request):
+    request.active_nav = "setup"
+    request.setup_tab = "reps"
+    q = request.GET.get("q") or ""
+    qs = Representative.objects.all()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
+    form = RepresentativeForm()
+    if request.method == "POST":
+        blocked = deny_unless(request, "reps.manage")
+        if blocked:
+            return blocked
+        form = RepresentativeForm(request.POST)
+        if form.is_valid():
+            rep = form.save()
+            messages.success(request, f"تمت إضافة المندوب {rep.name}")
+            return redirect("representatives")
+    page_obj, export_query = paginate_qs(request, qs)
+    return render(
+        request,
+        "reps/list.html",
+        {
+            "reps": page_obj,
+            "page_obj": page_obj,
+            "form": form,
+            "query": q,
+            "export_query": export_query,
+        },
+    )
+
+
+@login_required
+@require_perm("reps.view")
+def export_representatives(request):
+    q = request.GET.get("q") or ""
+    qs = Representative.objects.all().order_by("name")
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "المندوبون"
+    sheet.sheet_view.rightToLeft = True
+    headers = ["م", "اسم المندوب", "رقم الجوال"]
+    header_font = Font(name="Calibri", bold=True, color="1E40AF", size=11)
+    header_fill = PatternFill("solid", fgColor="E8F1FF")
+    header_align = Alignment(horizontal="center", vertical="center")
+    cell_align = Alignment(horizontal="right", vertical="center")
+    thin = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+    zebra = PatternFill("solid", fgColor="F8FAFC")
+    sheet.append(headers)
+    for col, _ in enumerate(headers, 1):
+        cell = sheet.cell(1, col)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin
+
+    for index, rep in enumerate(qs, 1):
+        sheet.append([index, rep.name, rep.phone])
+        for col in range(1, len(headers) + 1):
+            cell = sheet.cell(index + 1, col)
+            cell.alignment = cell_align
+            cell.border = thin
+            cell.font = Font(name="Calibri", size=11)
+            if index % 2 == 0:
+                cell.fill = zebra
+
+    for col, width in enumerate([6, 28, 22], 1):
+        sheet.column_dimensions[get_column_letter(col)].width = width
+    sheet.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{max(sheet.max_row, 1)}"
+    sheet.freeze_panes = "A2"
+    sheet.row_dimensions[1].height = 28
+
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="representatives-{timezone.localdate().isoformat()}.xlsx"'
+    )
+    return response
+
+
+@login_required
+@require_perm("reps.manage")
+def representative_edit(request, pk):
+    request.active_nav = "setup"
+    request.setup_tab = "reps"
+    rep = get_object_or_404(Representative, pk=pk)
+    form = RepresentativeForm(instance=rep)
+    if request.method == "POST":
+        form = RepresentativeForm(request.POST, instance=rep)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"تم تعديل المندوب {rep.name}")
+            return redirect("representatives")
+    return render(request, "reps/edit.html", {"form": form, "rep": rep})
+
+
+@login_required
+@require_POST
+@require_perm("reps.manage")
+def representative_delete(request, pk):
+    rep = get_object_or_404(Representative, pk=pk)
+    name = rep.name
+    rep.delete()
+    messages.success(request, f"تم حذف المندوب {name}")
+    return redirect("representatives")
+
+
+@login_required
 @require_perm("users.manage")
 def user_list(request):
     request.active_nav = "users"
@@ -1115,7 +1388,7 @@ def user_list(request):
     if request.method == "POST":
         form = PortalUserForm(request.POST)
         if form.is_valid():
-            user = User(username=form.cleaned_data["username"], email=form.cleaned_data.get("email") or "")
+            user = User(username=form.cleaned_data["username"])
             form.apply_name(user)
             user.set_password(form.cleaned_data["password"])
             apply_role_flags(user, form.cleaned_data["role"])
@@ -1125,7 +1398,6 @@ def user_list(request):
                 defaults={
                     "role": form.cleaned_data["role"],
                     "phone": form.cleaned_data.get("phone") or "",
-                    "branch": form.cleaned_data.get("branch") or "",
                 },
             )
             messages.success(request, f"تمت إضافة المستخدم {user.username}")
@@ -1161,7 +1433,7 @@ def export_users(request):
     sheet = workbook.active
     sheet.title = "المستخدمون"
     sheet.sheet_view.rightToLeft = True
-    headers = ["م", "رقم المستخدم", "الاسم", "الدور", "البريد", "الهاتف", "الفرع"]
+    headers = ["م", "رقم المستخدم", "الاسم", "رقم الجوال", "الدور"]
     header_font = Font(name="Calibri", bold=True, color="1E40AF", size=11)
     header_fill = PatternFill("solid", fgColor="E8F1FF")
     header_align = Alignment(horizontal="center", vertical="center")
@@ -1192,10 +1464,8 @@ def export_users(request):
                 index,
                 user.username,
                 user.get_full_name() or user.username,
-                role_label(user) or (getattr(profile, "role", "") or ""),
-                user.email,
                 getattr(profile, "phone", "") or "",
-                getattr(profile, "branch", "") or "",
+                role_label(user) or (getattr(profile, "role", "") or ""),
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -1206,7 +1476,7 @@ def export_users(request):
             if index % 2 == 0:
                 cell.fill = zebra
 
-    for col, width in enumerate([6, 22, 22, 18, 32, 18, 22], 1):
+    for col, width in enumerate([6, 22, 24, 20, 18], 1):
         sheet.column_dimensions[get_column_letter(col)].width = width
     sheet.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{max(sheet.max_row, 1)}"
     sheet.freeze_panes = "A2"
@@ -1231,7 +1501,6 @@ def _save_user_profile(user, form):
         defaults={
             "role": form.cleaned_data["role"],
             "phone": form.cleaned_data.get("phone") or "",
-            "branch": form.cleaned_data.get("branch") or "",
         },
     )
 
@@ -1246,7 +1515,6 @@ def user_edit(request, pk):
         form = PortalUserForm(request.POST, instance=user_obj)
         if form.is_valid():
             user_obj.username = form.cleaned_data["username"]
-            user_obj.email = form.cleaned_data.get("email") or ""
             form.apply_name(user_obj)
             if form.cleaned_data.get("password"):
                 user_obj.set_password(form.cleaned_data["password"])

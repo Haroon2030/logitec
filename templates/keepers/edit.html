@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل أمين مستودع{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="أمناء المستودع" %}
+<nav class="crumbs"><a href="{% url 'keepers' %}">أمناء المستودع</a> <span>›</span> تعديل</nav>
+<div class="page-head">
+    <h1>تعديل الأمين {{ keeper.name }}</h1>
+</div>
+
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field">
+            <span>اسم الأمين</span>
+            {{ form.name }}
+            {% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>رقم الجوال</span>
+            {{ form.phone }}
+            {% if form.phone.errors %}<small class="danger-text">{{ form.phone.errors|striptags }}</small>{% endif %}
+        </label>
+        <fieldset class="field">
+            <span>المستودعات المرتبطة</span>
+            {{ form.warehouses }}
+            {% if form.warehouses.errors %}<small class="danger-text">{{ form.warehouses.errors|striptags }}</small>{% endif %}
+        </fieldset>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'keepers' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>تأكيد وصول التوريد · {{ obj.number }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="login-body">
+    <div class="iso-bg" aria-hidden="true"></div>
+    <main class="login-card reply-card">
+        <div class="login-brand">
+            <span class="login-mark">{% include "partials/icon.html" with name="truck" %}</span>
+            <h1>رد المندوب</h1>
+            <p>حدد تاريخ التوريد وساعة الوصول للمستودع</p>
+        </div>
+
+        {% if messages %}
+        <div class="flash-stack">
+            {% for message in messages %}
+            <div class="flash flash-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="reply-summary">
+            <div><span>رقم الطلب</span><strong>{{ obj.number }}</strong></div>
+            <div><span>المورد</span><strong>{% if obj.supplier %}{{ obj.supplier.name }}{% else %}—{% endif %}</strong></div>
+            <div><span>المستودع</span><strong>{% if obj.warehouse %}{{ obj.warehouse.name }}{% if obj.warehouse.city %} — {{ obj.warehouse.city }}{% endif %}{% else %}—{% endif %}</strong></div>
+            <div><span>الحالة</span><strong>{{ obj.get_status_display }}</strong></div>
+        </div>
+
+        {% if locked %}
+        <p class="flash flash-success">تم استلام هذا الأمر في المستودع ولا يمكن تعديل الموعد.</p>
+        {% else %}
+        <form method="post" class="login-form" novalidate>
+            {% csrf_token %}
+            <label class="field">
+                <span>{{ form.arrival_date.label }}</span>
+                {{ form.arrival_date }}
+                {% if form.arrival_date.errors %}<small class="danger-text">{{ form.arrival_date.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>{{ form.arrival_hour.label }}</span>
+                {{ form.arrival_hour }}
+                {% if form.arrival_hour.errors %}<small class="danger-text">{{ form.arrival_hour.errors|striptags }}</small>{% endif %}
+            </label>
+            <button class="btn btn-dark btn-block" type="submit">
+                حفظ وإرسال للمستودع
+                <span aria-hidden="true">←</span>
+            </button>
+        </form>
+        {% endif %}
+
+        {% if obj.rep_replied_at and obj.scheduled_date %}
+        <p class="login-help">آخر تأكيد: {{ obj.scheduled_date|date:"j F Y" }} الساعة {{ obj.scheduled_hour|stringformat:"02d" }}:00</p>
+        {% endif %}
+    </main>
+</body>
+</html>

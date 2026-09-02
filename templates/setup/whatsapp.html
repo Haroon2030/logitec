@@ -7,7 +7,7 @@
 <div class="page-head">
     <div>
         <h1>ربط واتساب</h1>
-        <p class="muted">اربط الجوال أولاً، ثم احفظ أرقام المندوب والمستودع والمشتريات. عند حفظ أمر توريد تُرسل الرسالة مع ملف PDF</p>
+        <p class="muted">عند حفظ أمر توريد يصل المندوب رابط لتحديد تاريخ التوريد وساعة الوصول، وبعد حفظه تُرسل رسالة لمسؤول المستودع</p>
     </div>
 </div>
 
@@ -37,7 +37,6 @@
                 {% else %}
                 <span class="wa-badge is-wait" id="wa-badge">بانتظار الربط</span>
                 {% endif %}
-                <span class="wa-instance">{{ config.instance_name|default:"farshops" }}</span>
             </div>
             <h2>1. ربط الجوال</h2>
             <p class="muted">من واتساب: الإعدادات ← الأجهزة المرتبطة ← ربط جهاز، ثم امسح الرمز</p>
@@ -74,6 +73,9 @@
                 </span>
                 {{ form.enabled }}
             </label>
+            {% if perms.is_super_admin %}
+            <button class="btn btn-ghost" type="button" id="wa-show-server">إظهار إعدادات السيرفر</button>
+            <div id="wa-server-fields" hidden>
             <div class="wa-grid wa-grid-2">
                 <label class="field wa-span-2">
                     <span>رابط سيرفر Evolution</span>
@@ -88,7 +90,6 @@
                     <div class="wa-key-row">
                         {{ form.api_key }}
                     </div>
-                    <small class="muted">يجب أن يطابق مفتاح Evolution على السيرفر: HARO@2030</small>
                 </label>
             </div>
             <label class="wa-toggle wa-toggle-light">
@@ -98,27 +99,8 @@
                 </span>
                 {{ form.verify_ssl }}
             </label>
-        </section>
-
-        <section class="card wa-block">
-            <header class="wa-block-head">
-                <h2>3. أرقام المستلمين</h2>
-                <p class="muted">الصيغة الدولية بدون + ، مثال 9665xxxxxxxx</p>
-            </header>
-            <div class="wa-grid wa-grid-3">
-                <label class="field wa-phone">
-                    <span>المندوب</span>
-                    {{ form.phone_rep }}
-                </label>
-                <label class="field wa-phone">
-                    <span>مسؤول المستودع</span>
-                    {{ form.phone_warehouse }}
-                </label>
-                <label class="field wa-phone">
-                    <span>المشتريات</span>
-                    {{ form.phone_purchasing }}
-                </label>
             </div>
+            {% endif %}
         </section>
 
         <div class="wa-toolbar">
@@ -132,6 +114,15 @@
 {% block extra_js %}
 <script>
 (function () {
+    const btn = document.getElementById("wa-show-server");
+    const box = document.getElementById("wa-server-fields");
+    if (btn && box) {
+        btn.addEventListener("click", () => {
+            const show = box.hidden;
+            box.hidden = !show;
+            btn.textContent = show ? "إخفاء إعدادات السيرفر" : "إظهار إعدادات السيرفر";
+        });
+    }
     const connected = {{ wa_connected|yesno:"true,false" }};
     if (connected) return;
     const badge = document.getElementById("wa-badge");

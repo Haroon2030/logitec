@@ -32,10 +32,8 @@
                     <th>م</th>
                     <th>رقم المستخدم</th>
                     <th>الاسم</th>
+                    <th>رقم الجوال</th>
                     <th>الدور</th>
-                    <th>البريد</th>
-                    <th>الهاتف</th>
-                    <th>الفرع</th>
                     <th>الإجراء</th>
                 </tr>
             </thead>
@@ -45,10 +43,8 @@
                     <td class="row-num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
                     <td class="mono">{{ row.username }}</td>
                     <td>{{ row.get_full_name|default:row.username }}</td>
+                    <td class="mono" dir="ltr">{{ row.profile.phone|default:"—" }}</td>
                     <td>{{ row.profile.role_label_display|default:"—" }}</td>
-                    <td>{{ row.email|default:"—" }}</td>
-                    <td>{{ row.profile.phone|default:"—" }}</td>
-                    <td>{{ row.profile.branch|default:"—" }}</td>
                     <td class="row-actions">
                         {% action "edit" "user_edit" row.pk %}
                         {% if row.pk != user.pk %}
@@ -57,7 +53,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="muted">لا يوجد مستخدمون</td></tr>
+                <tr><td colspan="6" class="muted">لا يوجد مستخدمون</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -88,13 +84,19 @@
                 {% if form.full_name.errors %}<small class="danger-text">{{ form.full_name.errors|striptags }}</small>{% endif %}
             </label>
             <label class="field">
+                <span>رقم الجوال</span>
+                {{ form.phone }}
+                <small class="muted">يُستخدم لإرسال واتساب حسب الدور</small>
+                {% if form.phone.errors %}<small class="danger-text">{{ form.phone.errors|striptags }}</small>{% endif %}
+            </label>
+            <label class="field">
+                <span>الدور</span>
+                {{ form.role }}
+            </label>
+            <label class="field">
                 <span>كلمة المرور</span>
                 {{ form.password }}
                 {% if form.password.errors %}<small class="danger-text">{{ form.password.errors|striptags }}</small>{% endif %}
-            </label>
-            <label class="field">
-                <span>الدور / الصلاحية</span>
-                {{ form.role }}
             </label>
             <div class="modal-actions">
                 <button class="btn btn-ghost" type="button" data-close>إلغاء</button>

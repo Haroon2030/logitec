@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("r/<uuid:token>/", views.supply_rep_reply, name="supply_rep_reply"),
     path("login/", views.PortalLoginView.as_view(), name="login"),
     path("logout/", views.PortalLogoutView.as_view(), name="logout"),
     path("", views.dashboard, name="dashboard"),
@@ -21,10 +22,18 @@ urlpatterns = [
     path("setup/warehouses/export/", views.export_warehouses, name="export_warehouses"),
     path("setup/warehouses/<int:pk>/edit/", views.warehouse_edit, name="warehouse_edit"),
     path("setup/warehouses/<int:pk>/delete/", views.warehouse_delete, name="warehouse_delete"),
+    path("setup/keepers/", views.keeper_list, name="keepers"),
+    path("setup/keepers/export/", views.export_keepers, name="export_keepers"),
+    path("setup/keepers/<int:pk>/edit/", views.keeper_edit, name="keeper_edit"),
+    path("setup/keepers/<int:pk>/delete/", views.keeper_delete, name="keeper_delete"),
     path("suppliers/", views.supplier_list, name="suppliers"),
     path("suppliers/export/", views.export_suppliers, name="export_suppliers"),
     path("suppliers/<int:pk>/edit/", views.supplier_edit, name="supplier_edit"),
     path("suppliers/<int:pk>/delete/", views.supplier_delete, name="supplier_delete"),
+    path("setup/reps/", views.representative_list, name="representatives"),
+    path("setup/reps/export/", views.export_representatives, name="export_representatives"),
+    path("setup/reps/<int:pk>/edit/", views.representative_edit, name="representative_edit"),
+    path("setup/reps/<int:pk>/delete/", views.representative_delete, name="representative_delete"),
     path("setup/whatsapp/", views.whatsapp_setup, name="whatsapp_setup"),
     path("setup/whatsapp/live/", views.whatsapp_live, name="whatsapp_live"),
     path("users/", views.user_list, name="users"),

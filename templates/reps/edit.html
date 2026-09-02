@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل مندوب{% endblock %}
+
+{% block content %}
+{% include "setup/_tabs.html" with setup_current="المندوبون" %}
+<nav class="crumbs"><a href="{% url 'representatives' %}">المندوبون</a> <span>›</span> تعديل</nav>
+<div class="page-head">
+    <h1>تعديل المندوب {{ rep.name }}</h1>
+</div>
+
+<section class="card" style="max-width: 560px">
+    <form method="post">
+        {% csrf_token %}
+        <label class="field">
+            <span>اسم المندوب</span>
+            {{ form.name }}
+            {% if form.name.errors %}<small class="danger-text">{{ form.name.errors|striptags }}</small>{% endif %}
+        </label>
+        <label class="field">
+            <span>رقم الجوال</span>
+            {{ form.phone }}
+            {% if form.phone.errors %}<small class="danger-text">{{ form.phone.errors|striptags }}</small>{% endif %}
+        </label>
+        <div class="modal-actions">
+            <a class="btn btn-ghost" href="{% url 'representatives' %}">إلغاء</a>
+            <button class="btn btn-navy" type="submit">حفظ التعديل</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
